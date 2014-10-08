@@ -92,8 +92,8 @@ def receive_data():
 			sensorValue = port.read(1)
 		        if sensorValue and index < 10  :
         			sensorData[index] = ord(sensorValue)
-	                port.write(chr(ACK_S[index]))
-        	        index = index + 1
+	                	port.write(chr(ACK_S[index]))
+        	        	index = index + 1
 			elif sensorValue and index == 10:
  #               checksum = ord(sensorValue)
 				index = index + 1
@@ -167,7 +167,7 @@ def compute_actuator_checksum():
 	return CheckSum
 
 while connectionStatus != 1:
-    start_connection()
+	start_connection()
 time.sleep(2)
 receive_data()
 time.sleep(2)
