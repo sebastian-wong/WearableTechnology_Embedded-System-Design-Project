@@ -102,9 +102,9 @@ def SSSP(start, end):
 	
         if distance[end-1] < shortestTime:
                 shortestTime = distance[end-1]
-        print "checking sequence"
-        for k in range(len(distance)):
-                print "distance[", k, "]", distance[k]
+        #print "checking sequence"
+        #for k in range(len(distance)):
+         #       print "distance[", k, "]", distance[k]
 
         backtrack = end-1
         path.append(end)
@@ -114,7 +114,9 @@ def SSSP(start, end):
         
 	return path
 
-def provideDirections(nextCheckPoint, pos_x, pos_y):
+def provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y):
+        detourCheckPoint = False
+        reachCheckPoint = False
         while True:
                 distance, heading = input()
 
@@ -122,7 +124,7 @@ def provideDirections(nextCheckPoint, pos_x, pos_y):
                         raise Exception("negative distance invalid")
 
                 #compensating for map northAt
-                #heading = int(heading) - (360 - northAt)
+                heading = int(heading) - (360 - northAt)
                 heading %= 360
                 
                 #calculating displacement
@@ -138,6 +140,38 @@ def provideDirections(nextCheckPoint, pos_x, pos_y):
                 checkPoint_y = int(mapinfo['map'][nextCheckPoint - 1]['y'])
                 dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
                 checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
+
+                #getting coordinates of other adjacent checkpoints
+                otherCheckPoint = []
+                str = mapinfo['map'][currentCheckPoint - 1]['linkTo']
+                print "linkTo", str
+                otherCheckPoint = [int(s) for s in str.split(",")]
+                otherCheckPoint.remove(nextCheckPoint)
+                if len(otherCheckPoint) > 1:
+                        print "number of adjacent checkpoints, ", len(otherCheckPoint)
+                        otherCheckPoint_x = []
+                        otherCheckPoint_y = []
+                        print "still ok"
+                        for i in range(len(otherCheckPoint)):
+                                otherCheckPoint_x.append(int(mapinfo['map'][otherCheckPoint[i] - 1]['x']))
+                                otherCheckPoint_y.append(int(mapinfo['map'][otherCheckPoint[i] - 1]['y']))
+                        print "check borders"
+                        print otherCheckPoint_x
+                        print otherCheckPoint_y
+                        left_x = min(otherCheckPoint_x) if min(otherCheckPoint_x) < checkPoint_x else - sys.maxint - 1
+                        right_x = max(otherCheckPoint_x) if max(otherCheckPoint_x) > checkPoint_x else sys.maxint
+                        bottom_y = min(otherCheckPoint_y) if min(otherCheckPoint_y) < checkPoint_y else - sys.maxint - 1
+                        top_y = max(otherCheckPoint_y) if max(otherCheckPoint_y) > checkPoint_y else sys.maxint
+                        
+                        if (pos_x <= left_x or pos_x >= right_x) or (pos_y <= bottom_y or pos_y >= top_y):
+                                detourCheckPoint = True
+                                return reachCheckPoint, pos_x, pos_y, detourCheckPoint
+                                #otherCheckPoint_x = (int(mapinfo['map'][otherCheckPoint[i] - 1]['x']))
+                                #otherCheckPoint_y = (int(mapinfo['map'][otherCheckPoint[i] - 1]['y']))
+                                #dist_detour = math.sqrt(int(int(pos_x - otherCheckPoint_x)**2 + int(pos_y - otherCheckPoint_y)**2))
+                                #if (dist_detour <= 200):
+                                #        detourCheckPoint = True
+                                #        return reachCheckPoint, pos_x, pos_y, detourCheckPoint
 
                 try:
                         tan_direction = checkpoint_direction[1] / checkpoint_direction[0]
@@ -164,23 +198,24 @@ def provideDirections(nextCheckPoint, pos_x, pos_y):
                 elif change_direction < -180:
                         change_direction = -1 * (change_direction + 180)
                         
-                if change_direction >= 10:
-                        turn_instruction = 'turn clockwise'
-                        direction = direction %(turn_instruction, change_direction, dist)
-                elif change_direction <= -10:
-                        turn_instruction = 'turn anticlockwise'
-                        direction = direction %(turn_instruction, abs(change_direction), dist)
-                else:
-                        turn_instruction = 'go straight'
-                        direction = direction %(turn_instruction, change_direction, dist)
+                if dist >= 20:
+                        if change_direction >= 10:
+                                turn_instruction = 'turn clockwise'
+                                direction = direction %(turn_instruction, change_direction, dist)
+                        elif change_direction <= -10:
+                                turn_instruction = 'turn anticlockwise'
+                                direction = direction %(turn_instruction, abs(change_direction), dist)
+                        else:
+                                turn_instruction = 'go straight'
+                                direction = direction %(turn_instruction, change_direction, dist)
 
-                print direction
-                
-                if dist < 20:
+                        print direction
+                else:
                         print "checkpoint reached!"
+                        reachCheckPoint = True
                         break
                 
-        return True, pos_x, pos_y
+        return reachCheckPoint, pos_x, pos_y, detourCheckPoint
 
 
 graphCreated = False
@@ -201,21 +236,40 @@ try:
 except Exception:
         print "INVALID LOCATION!"
 else:        
-        path = SSSP(startNode, destNode)
-        reachCheckPoint = True
-        nextCheckPoint = path.pop()
-        pos_x = mapinfo['map'][nextCheckPoint-1]['x']
-        pos_y = mapinfo['map'][nextCheckPoint-1]['y']
-        print "pos_x = ", pos_x, " pos_y = ", pos_y
-        
-        while path:
-                if reachCheckPoint:
-                        reachCheckPoint = False
-                        nextCheckPoint = path.pop()
-                        print nextCheckPoint, mapinfo['map'][nextCheckPoint-1]['nodeName']
-                try:
-                        reachCheckPoint, pos_x, pos_y = provideDirections(nextCheckPoint, pos_x, pos_y)
-                except Exception:
-                        print "INVALID DISTANCE!"
+        #print AdjList
+        reachDestination = False
+        calculatePath = True
+        while reachDestination == False:
+                if calculatePath == True:
+                        path = SSSP(startNode, destNode)
+                        calculatePath = False
+                        
+                for i in range(len(path)):
+                        print path[i]
+                reachCheckPoint = True
+                currentCheckPoint = path.pop()
+                pos_x = mapinfo['map'][currentCheckPoint-1]['x']
+                pos_y = mapinfo['map'][currentCheckPoint-1]['y']
+                print "pos_x = ", pos_x, " pos_y = ", pos_y
+                
+                while path:
+                        if reachCheckPoint:
+                                reachCheckPoint = False
+                                nextCheckPoint = path.pop()
+                                if not path:
+                                        reachDestination = True
+                                print nextCheckPoint, mapinfo['map'][nextCheckPoint-1]['nodeName']
+                        try:
+                                reachCheckPoint, pos_x, pos_y, detourCheckPoint = provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)
+                                if reachCheckPoint:
+                                        currentCheckPoint = nextCheckPoint
+                                if detourCheckPoint:
+                                        print "detour!"
+                                        calculatePath = True
+                                        path[:] = []
+                                        break
+                        except Exception:
+                                print "INVALID DISTANCE!"
 
-        print "destination reached!"
+                if ((not path) and (reachDestination == True)):
+                        print "destination reached!"
