@@ -122,7 +122,8 @@ class Map:
                 while True:
                         #distance, heading = input()
                         distance = input()
-                        heading = data_parser.get_compass_read()
+                        heading_arr = data_parser.get_compass_read()
+                        heading = heading_arr[0]
                         print "distance", distance
                         print "heading", heading
                         if distance < 0:
