@@ -8,11 +8,11 @@ import Queue as queue
 import signal
 import time
 
-import rpiarduart3
+import data_parser
 
-def signal_handler(signal, frame):
-        sys.modules[__name__].__dict__.clear()
-        sys.exit(0)
+#def signal_handler(signal, frame):
+ #       sys.modules[__name__].__dict__.clear()
+  #      sys.exit(0)
 
 class Map:
         AdjList = []
@@ -105,9 +105,6 @@ class Map:
                 
                 if Map.distance[end-1] < shortestTime:
                         shortestTime = Map.distance[end-1]
-                #print "checking sequence"
-                #for k in range(len(distance)):
-                 #       print "distance[", k, "]", distance[k]
 
                 backtrack = end-1
                 path = []
@@ -123,7 +120,9 @@ class Map:
                 detourCheckPoint = False
                 reachCheckPoint = False
                 while True:
-                        distance, heading = input()
+                        #distance, heading = input()
+                        distance = input()
+                        heading = data_parser.get_compass_read()
                         print "distance", distance
                         print "heading", heading
                         if distance < 0:
@@ -173,12 +172,6 @@ class Map:
                                 if (pos_x <= left_x or pos_x >= right_x) or (pos_y <= bottom_y or pos_y >= top_y):
                                         detourCheckPoint = True
                                         return reachCheckPoint, pos_x, pos_y, detourCheckPoint
-                                        #otherCheckPoint_x = (int(mapinfo['map'][otherCheckPoint[i] - 1]['x']))
-                                        #otherCheckPoint_y = (int(mapinfo['map'][otherCheckPoint[i] - 1]['y']))
-                                        #dist_detour = math.sqrt(int(int(pos_x - otherCheckPoint_x)**2 + int(pos_y - otherCheckPoint_y)**2))
-                                        #if (dist_detour <= 200):
-                                        #        detourCheckPoint = True
-                                        #        return reachCheckPoint, pos_x, pos_y, detourCheckPoint
 
                         try:
                                 tan_direction = checkpoint_direction[1] / checkpoint_direction[0]
@@ -223,8 +216,46 @@ class Map:
                                 break
                         
                 return reachCheckPoint, pos_x, pos_y, detourCheckPoint
+        def provideGuidance(self):
+                reachDestination = False
+                calculatePath = True
+                while reachDestination == False:
+                        if calculatePath == True:
+                                path = myMap.SSSP(startNode, destNode)
+                                calculatePath = False
 
-signal.signal(signal.SIGINT, signal_handler)
+                        print "print first time"
+                        for i in range(len(path)):
+                                print path[i]
+                        reachCheckPoint = True
+                        currentCheckPoint = path.pop()
+                        pos_x = mapinfo['map'][currentCheckPoint-1]['x']
+                        pos_y = mapinfo['map'][currentCheckPoint-1]['y']
+                        print "pos_x = ", pos_x, " pos_y = ", pos_y
+                        
+                        while path:
+                                if reachCheckPoint:
+                                        reachCheckPoint = False
+                                        nextCheckPoint = path.pop()
+                                        if not path:
+                                                reachDestination = True
+                                        print nextCheckPoint, mapinfo['map'][nextCheckPoint-1]['nodeName']
+                                try:
+                                        reachCheckPoint, pos_x, pos_y, detourCheckPoint = myMap.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)
+                                        if reachCheckPoint:
+                                                currentCheckPoint = nextCheckPoint
+                                        if detourCheckPoint:
+                                                print "detour!"
+                                                calculatePath = True
+                                                path[:] = []
+                                                break
+                                except Exception:
+                                        print "INVALID DISTANCE!"
+
+                        if ((not path) and (reachDestination == True)):
+                                print "destination reached!"
+
+#signal.signal(signal.SIGINT, signal_handler)
 building = raw_input()
 level = raw_input()
 internetConnection = False
@@ -249,41 +280,4 @@ try:
 except Exception:
         print "INVALID LOCATION!"
 else:        
-        #print AdjList
-        reachDestination = False
-        calculatePath = True
-        while reachDestination == False:
-                if calculatePath == True:
-                        path = myMap.SSSP(startNode, destNode)
-                        calculatePath = False
-
-                print "print first time"
-                for i in range(len(path)):
-                        print path[i]
-                reachCheckPoint = True
-                currentCheckPoint = path.pop()
-                pos_x = mapinfo['map'][currentCheckPoint-1]['x']
-                pos_y = mapinfo['map'][currentCheckPoint-1]['y']
-                print "pos_x = ", pos_x, " pos_y = ", pos_y
-                
-                while path:
-                        if reachCheckPoint:
-                                reachCheckPoint = False
-                                nextCheckPoint = path.pop()
-                                if not path:
-                                        reachDestination = True
-                                print nextCheckPoint, mapinfo['map'][nextCheckPoint-1]['nodeName']
-                        try:
-                                reachCheckPoint, pos_x, pos_y, detourCheckPoint = myMap.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)
-                                if reachCheckPoint:
-                                        currentCheckPoint = nextCheckPoint
-                                if detourCheckPoint:
-                                        print "detour!"
-                                        calculatePath = True
-                                        path[:] = []
-                                        break
-                        except Exception:
-                                print "INVALID DISTANCE!"
-
-                if ((not path) and (reachDestination == True)):
-                        print "destination reached!"
+        myMap.provideGuidance()
