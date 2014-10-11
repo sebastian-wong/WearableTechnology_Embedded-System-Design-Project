@@ -8,7 +8,7 @@ import Queue as queue
 import signal
 import time
 
-import data_parser
+from data_parser import DataParser
 
 #def signal_handler(signal, frame):
  #       sys.modules[__name__].__dict__.clear()
@@ -121,8 +121,9 @@ class Map:
                 reachCheckPoint = False
                 while True:
                         #distance, heading = input()
+                        dataParser = DataParser()
                         distance = input()
-                        heading_arr = data_parser.get_compass_read()
+                        heading_arr = dataParser.get_compass_read()
                         heading = heading_arr[0]
                         print "distance", distance
                         print "heading", heading
@@ -242,43 +243,49 @@ class Map:
                                                 reachDestination = True
                                         print nextCheckPoint, mapinfo['map'][nextCheckPoint-1]['nodeName']
                                 try:
-                                        reachCheckPoint, pos_x, pos_y, detourCheckPoint = myMap.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)
-                                        if reachCheckPoint:
-                                                currentCheckPoint = nextCheckPoint
-                                        if detourCheckPoint:
-                                                print "detour!"
-                                                calculatePath = True
-                                                path[:] = []
-                                                break
+                                        #start_time = time.time()
+                                        #timing_interval = 1
+                                        #count_time = 0
+                                        while not reachCheckPoint:
+                                                #time.sleep(start_time + count_time * timing_interval - time.time())
+                                                reachCheckPoint, pos_x, pos_y, detourCheckPoint = self.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)
+                                                if reachCheckPoint:
+                                                        currentCheckPoint = nextCheckPoint
+                                                if detourCheckPoint:
+                                                        print "detour!"
+                                                        calculatePath = True
+                                                        path[:] = []
+                                                        break
+                                                #count_time = count_time + 1
                                 except Exception:
                                         print "INVALID DISTANCE!"
 
                         if ((not path) and (reachDestination == True)):
                                 print "destination reached!"
+if __name__ == '__main__':
+        #signal.signal(signal.SIGINT, signal_handler)
+        building = raw_input()
+        level = raw_input()
+        internetConnection = False
+        while not internetConnection:
+                try:
+                        url = 'http://showmyway.comp.nus.edu.sg/getMapInfo.php?Building=%s&Level=%s' %(building, level)
+                        mapinfo = json.load(urllib.urlopen(url))
+                        internetConnection = True
+                except:
+                        print "NO INTERNET SIGNAL!"
+                        internetConnection = False
 
-#signal.signal(signal.SIGINT, signal_handler)
-building = raw_input()
-level = raw_input()
-internetConnection = False
-while not internetConnection:
+        myMap = Map(mapinfo)
+
+        print "northAt = ", myMap.northAt
+        startPlace = raw_input()
+        destPlace = raw_input()
+
         try:
-                url = 'http://showmyway.comp.nus.edu.sg/getMapInfo.php?Building=%s&Level=%s' %(building, level)
-                mapinfo = json.load(urllib.urlopen(url))
-                internetConnection = True
-        except:
-                print "NO INTERNET SIGNAL!"
-                internetConnection = False
-
-myMap = Map(mapinfo)
-
-print "northAt = ", myMap.northAt
-startPlace = raw_input()
-destPlace = raw_input()
-
-try:
-        startNode = int(myMap.searchNodeId(startPlace))
-        destNode = int(myMap.searchNodeId(destPlace))
-except Exception:
-        print "INVALID LOCATION!"
-else:        
-        myMap.provideGuidance()
+                startNode = int(myMap.searchNodeId(startPlace))
+                destNode = int(myMap.searchNodeId(destPlace))
+        except Exception:
+                print "INVALID LOCATION!"
+        else:        
+                myMap.provideGuidance()
