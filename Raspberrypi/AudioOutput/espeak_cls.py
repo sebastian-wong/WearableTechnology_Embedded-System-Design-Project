@@ -7,7 +7,7 @@ class AudioFeedback(object):
 		self._process = None
 
 
-	#threaded feedback so that audio feedback that is not spoken in time will expire in stipulated time	
+	#threaded feedback to increase efficiency	
 	def threadedFeedback(self,text, timeout=None):
 		def Feedback():
 			#Speaking with amplitude=200, pitch=50, speed=150, capital=20, language= english-rp, voice=female2
