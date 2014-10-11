@@ -27,9 +27,7 @@ class AudioFeedback(object):
 		return self._process.returncode	
 
 
-
-
-#to be executed when called by main program
+#to be executed when you are testing this module separately
 if __name__ == '__main__':
 	text = "hello world"
 	output = AudioFeedback()
