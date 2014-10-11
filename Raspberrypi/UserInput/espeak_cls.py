@@ -6,17 +6,31 @@ class AudioFeedback(object):
 	def __init__ (self):
 		self._process = None
 
-	def Feedback(self,text,timeout=None):
 
-		#Speaking with amplitude=200, pitch=50, speed=150, capital=20, language= english-rp, voice=female2
-		self._process = subprocess.Popen(['espeak', '-a200', '-p50', '-s150', '-k20','-ven-rp+f2', text])
-		#wait for subprocess to terminate
-		self._process.wait()
-		
+	#threaded feedback so that audio feedback that is not spoken in time will expire in stipulated time	
+	def threadedFeedback(self,text, timeout=None):
+		def Feedback():
+			#Speaking with amplitude=200, pitch=50, speed=150, capital=20, language= english-rp, voice=female2
+			self._process = subprocess.Popen(['espeak', '-a200', '-p50', '-s150', '-k20', '-ven-rp+f2', text])
+			self._process.poll()
 		
 
-#testing AudioFeedback class with python
-if __name__ == "__main__":
+		feedbackThreads = threading.Thread(group=None, target = Feedback)
+		feedbackThreads.start()
+
+		#Wait until the thread terminates
+		feedbackThreads.join(timeout)
+		#check if join has expired
+		if feedbackThreads.is_alive():
+			#kill the process	
+			self._process.kill()
+		return self._process.returncode	
+
+
+
+
+#to be executed when called by main program
+if __name__ == '__main__':
 	text = "hello world"
 	output = AudioFeedback()
-	output.Feedback(text)
+	output.threadedFeedback(text)
