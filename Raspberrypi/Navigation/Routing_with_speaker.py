@@ -8,7 +8,7 @@ import Queue as queue
 import signal
 import time
 
-from data_parser import DataParser
+#from data_parser import DataParser
 
 from espeak_cls import AudioFeedback
 
@@ -199,7 +199,7 @@ class Map:
                                 heading_direction = 270 - heading_direction
 
                         direction = '%s %lf degrees, %lf'
-                        speak_direction = '%s %d degrees, %d'
+                        speak_direction = '%s %d degrees, and walk %d point %d meters'
                         change_direction = heading_direction - heading
                         if change_direction > 180:
                                 change_direction = -1 * (change_direction - 180)
@@ -211,15 +211,15 @@ class Map:
                                 if change_direction >= 10:
                                         turn_instruction = 'turn clockwise'
                                         direction = direction %(turn_instruction, change_direction, dist)
-                                        speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist))
+                                        speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
                                 elif change_direction <= -10:
                                         turn_instruction = 'turn anticlockwise'
                                         direction = direction %(turn_instruction, abs(change_direction), dist)
-                                        speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist))
+                                        speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist/100), int((dist%100)/10))
                                 else:
                                         turn_instruction = 'go straight'
                                         direction = direction %(turn_instruction, change_direction, dist)
-                                        speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist))
+                                        speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
 
                                 print direction
                                 
