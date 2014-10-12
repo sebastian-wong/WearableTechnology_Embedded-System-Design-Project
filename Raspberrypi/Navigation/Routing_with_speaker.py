@@ -118,13 +118,12 @@ class Map:
                 
                 return path
 
-        def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y):
+        def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker):
                 print "start of function"
                 detourCheckPoint = False
                 reachCheckPoint = False
                 while True:
                         distance, heading = input()
-                        speaker = AudioFeedback()
                         #dataParser = DataParser()
                         #distance = input()
                         #heading_arr = dataParser.get_compass_read()
@@ -225,7 +224,8 @@ class Map:
                                 
                                 speaker.threadedFeedback(speak_direction)
                         else:
-                                print "checkpoint reached!"
+                                sayReachCheckPoint = 'checkpoint reached!'
+                                speaker.threadedFeedback(sayReachCheckPoint)
                                 reachCheckPoint = True
                                 break
                         
@@ -233,14 +233,24 @@ class Map:
         def provideGuidance(self):
                 reachDestination = False
                 calculatePath = True
+                sayPathRoute = True
+                speaker = AudioFeedback()
                 while reachDestination == False:
                         if calculatePath == True:
                                 path = myMap.SSSP(startNode, destNode)
                                 calculatePath = False
 
-                        print "print first time"
-                        for i in range(len(path)):
-                                print path[i]
+                        if sayPathRoute:
+                                sayPathNode = '%s'
+                                for i in range(len(path)): #print in reverse order
+                                        print path[len(path)-1-i], mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                        if i == 0:
+                                                sayPathNode = 'the path route starts from %s' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                        else:
+                                                sayPathNode = 'then to %s' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                        speaker.threadedFeedback(sayPathNode)
+                                sayPathRoute = False
+                                
                         reachCheckPoint = True
                         currentCheckPoint = path.pop()
                         pos_x = mapinfo['map'][currentCheckPoint-1]['x']
@@ -260,20 +270,25 @@ class Map:
                                         #count_time = 0
                                         while not reachCheckPoint:
                                                 #time.sleep(start_time + count_time * timing_interval - time.time())
-                                                reachCheckPoint, pos_x, pos_y, detourCheckPoint = self.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)
+                                                reachCheckPoint, pos_x, pos_y, detourCheckPoint = self.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker)
                                                 if reachCheckPoint:
                                                         currentCheckPoint = nextCheckPoint
                                                 if detourCheckPoint:
                                                         print "detour!"
                                                         calculatePath = True
                                                         path[:] = []
+                                                        sayPathRoute = True
                                                         break
                                                 #count_time = count_time + 1
                                 except Exception:
                                         print "INVALID DISTANCE!"
 
                         if ((not path) and (reachDestination == True)):
-                                print "destination reached!"
+                                sayDestinationReached = 'destination reached!'
+                                speaker.threadedFeedback(sayDestinationReached)
+
+
+                                
 if __name__ == '__main__':
         #signal.signal(signal.SIGINT, signal_handler)
         building = raw_input()
