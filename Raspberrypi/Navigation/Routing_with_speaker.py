@@ -122,6 +122,8 @@ class Map:
                 print "start of function"
                 detourCheckPoint = False
                 reachCheckPoint = False
+		sayNextCheckPoint = 'your next checkpoint is %s\n' % mapinfo['map'][nextCheckPoint - 1]['nodeName']
+		speaker.threadedFeedback(sayNextCheckPoint)
                 while True:
                         distance, heading = input()
                         #dataParser = DataParser()
@@ -197,8 +199,8 @@ class Map:
                         else:
                                 heading_direction = 270 - heading_direction
 
-                        direction = '%s %lf degrees, %lf'
-                        speak_direction = '%s %d degrees, and walk %d point %d meters'
+                        direction = '%s %lf degrees, %lf\n'
+                        speak_direction = '%s %d degrees, and walk %d point %d meters\n'
                         change_direction = heading_direction - heading
                         if change_direction > 180:
                                 change_direction = -1 * (change_direction - 180)
@@ -224,7 +226,7 @@ class Map:
                                 
                                 speaker.threadedFeedback(speak_direction)
                         else:
-                                sayReachCheckPoint = 'checkpoint reached!'
+                                sayReachCheckPoint = 'checkpoint reached!\n'
                                 speaker.threadedFeedback(sayReachCheckPoint)
                                 reachCheckPoint = True
                                 break
@@ -248,10 +250,11 @@ class Map:
                                                 firstNode = 'the path route starts from %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
                                                 routeSpeechInfo = routeSpeechInfo + firstNode
                                         else:
-                                                nextNode = 'then to %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                                nextNode = 'followed by %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
                                                 routeSpeechInfo = routeSpeechInfo + nextNode
+				routeSpeechInfo = routeSpeechInfo + '\n'
                                 speaker.threadedFeedback(routeSpeechInfo)
-                                sayPathRoute = False
+				sayPathRoute = False
                                 
                         reachCheckPoint = True
                         currentCheckPoint = path.pop()
@@ -286,7 +289,7 @@ class Map:
                                         print "INVALID DISTANCE!"
 
                         if ((not path) and (reachDestination == True)):
-                                sayDestinationReached = 'destination reached!'
+                                sayDestinationReached = 'destination reached!\n'
                                 speaker.threadedFeedback(sayDestinationReached)
 
 
