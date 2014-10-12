@@ -241,14 +241,16 @@ class Map:
                                 calculatePath = False
 
                         if sayPathRoute:
+                                routeSpeechInfo = ''
                                 for i in range(len(path)): #print in reverse order
                                         print path[len(path)-1-i], mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
                                         if i == 0:
-                                                sayFirstNode = 'the path route starts from %s' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
-                                                speaker.threadedFeedback(sayFirstNode)
+                                                firstNode = 'the path route starts from %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                                routeSpeechInfo = routeSpeechInfo + firstNode
                                         else:
-                                                sayNextNode = 'then to %s' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
-                                                speaker.threadedFeedback(sayNextNode)
+                                                nextNode = 'then to %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                                routeSpeechInfo = routeSpeechInfo + nextNode
+                                speaker.threadedFeedback(routeSpeechInfo)
                                 sayPathRoute = False
                                 
                         reachCheckPoint = True
