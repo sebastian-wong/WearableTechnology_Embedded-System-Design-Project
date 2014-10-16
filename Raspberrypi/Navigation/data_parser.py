@@ -1,82 +1,93 @@
-#import rpiarduart3
+#import rpiUartCommunication_working
 from multiprocessing import Process, Queue
+import numpy as np
+
+
 
 class DataParser(object):
-        acc = Queue()
+        step = Queue()
+        compass = Queue()
         gyro = Queue()
         baro = Queue()
-        compass = Queue()
-        IR = Queue()
         ultrasound = Queue()
+        IR = Queue()
 
-        def request_readings(self, acc, gyro, baro, compass, IR, ultrasound):
-                #data = rpiarduart3.receive_data()
-                data = [1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10]
+        def request_readings(self, step, compass, gyro, baro, ultrasound, IR):
+                #data = rpiUartCommunication_working.receivedSensorData
 
-                acc_read_n = data[0]
-                acc_read = []
-                for n in range(acc_read_n):
-                        acc_read.append(data[n+1])
-                acc.put(acc_read)
+                #Steps for this second up to 5 steps: 1 byte
+                #Compass bearings for those steps: 5 bytes
+                #Gyro readings: 3 bytes
+                #Barometer reading: 1 byte
+                #Ultrasound readings: 6 bytes
+                #IR readings: 2 bytes
+                #Total right now: 18 bytes
+                #ACK_A=[30,31,32,33,34,35,36,37]
+                #Every two bytes: motor and their respective duration - left,right, forward,backward
+                data = [1, 30,0,0,0,0, 0,0,0, 0, 0,0,0,0,0,0, 0,0]
+                step.put(data[0])
 
-                gyro_read_m = data[acc_read_n+1]
+                compass_no = 5
+                #compass_read = []
+                compass_read = np.zeros((5,), dtype=np.uint8)
+                for i in range(compass_no):
+                        compass_read[i] = data[i+1]
+                compass.put(compass_read)
+                
+                gyro_no = 3
                 gyro_read = []
-                for m in range(gyro_read_m):
-                        gyro_read.append(data[m+acc_read_n+2])
+                for g in range(gyro_no):
+                       gyro_read.append(data[g+compass_no+1])
                 gyro.put(gyro_read)
 
-                compass_read_c = data[acc_read_n+gyro_read_m+2]
-                compass_read = []
-                for c in range(compass_read_c):
-                        compass_read.append(data[c+gyro_read_m+acc_read_n+3])
-                compass.put(compass_read)
-
-                baro_read_b = data[compass_read_c+gyro_read_m+acc_read_n+3]
-                baro_read = []
-                for b in range(baro_read_b):
-                        baro_read.append(data[b+compass_read_c+gyro_read_m+acc_read_n+4])
+                baro_no = 1
+                baro_read = data[compass_no+gyro_no+1]
                 baro.put(baro_read)
 
+                ultrasound_no = 6
+                ultrasound_read = []
+                for u in range(ultrasound_no):
+                        ultrasound_read.append(data[u+compass_no+gyro_no+baro_no+1])
+                ultrasound.put(ultrasound_read)
 
-                IR_read_i = data[baro_read_b+compass_read_c+gyro_read_m+acc_read_n+4]
+
+                IR_no = 2
                 IR_read = []
-                for i in range(IR_read_i):
-                        IR_read.append(data[i+baro_read_b+compass_read_c+gyro_read_m+acc_read_n+5])
+                for i in range(IR_no):
+                        IR_read.append(data[i+compass_no+gyro_no+baro_no+ultrasound_no+1])
                 IR.put(IR_read)
 
-                ultrasound_read_u = data[IR_read_i+baro_read_b+compass_read_c+gyro_read_m+acc_read_n+5]
-                ultrasound_read = []
-                for u in range(ultrasound_read_u):
-                        ultrasound_read.append(data[u+IR_read_i+baro_read_b+compass_read_c+gyro_read_m+acc_read_n+6])
-                ultrasound.put(ultrasound_read)
+                
                 
                 #return acc_read, gyro_read, compass_read, baro_read, IR_read, ultrasound_read
                 
         def __init__(self):
-                p = Process(target= self.request_readings, args= (DataParser.acc, DataParser.gyro, DataParser.baro, DataParser.compass, DataParser.IR, DataParser.ultrasound))
+                p = Process(target= self.request_readings, args= (DataParser.step, DataParser.compass, DataParser.gyro, DataParser.baro, DataParser.ultrasound, DataParser.IR))
                 p.start()
                 p.join()
 
-        def get_acc_read(self):
-                return self.acc_read.get()
+        def get_step_read(self):
+                return self.step.get()
 
         def get_gyro_read(self):
-                return self.gyro_read.get()
+                return self.gyro.get()
 
         def get_compass_read(self):
                 print "in compass read"
                 return self.compass.get()
 
         def get_baro_read(self):
-                return self.baro_read.get()
+                return self.baro.get()
 
         def get_IR_read(self):
-                return self.IR_read.get()
+                return self.IR.get()
 
         def get_ultrasound_read(self):
-                return self.ultrasound_read.get()
+                return self.ultrasound.get()
 
 if __name__ == '__main__':
         data_parser = DataParser()
-        sample = data_parser.get_compass_read()
-        print sample
+        step = data_parser.get_step_read()
+        compass = data_parser.get_compass_read()
+        print step
+        print compass
