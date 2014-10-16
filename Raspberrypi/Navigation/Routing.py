@@ -8,9 +8,11 @@ import Queue as queue
 import signal
 import threading
 import time
+import shelve
 
 from data_parser import DataParser
 from espeak_cls import AudioFeedback
+#from SpeechRecogniser import SpeechRecognition
 
 def signal_handler(signal, frame):
         #sys.modules[__name__].__dict__.clear()
@@ -117,10 +119,10 @@ class Map:
                 
                 return path
 
-        def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker):
+        def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y):
                 #threading.Timer(1.0, provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)).start()
                 print "start of function"
-                speaker.threadedFeedback(sayNextCheckPoint)
+                #speaker.threadedFeedback(sayNextCheckPoint)
                 detourCheckPoint = False
                 reachCheckPoint = False
                 start_time = time.time()
@@ -223,22 +225,22 @@ class Map:
                                         if change_direction >= 10:
                                                 turn_instruction = 'turn clockwise'
                                                 direction = direction %(turn_instruction, change_direction, dist)
-                                                speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
+                                                #speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
                                         elif change_direction <= -10:
                                                 turn_instruction = 'turn anticlockwise'
                                                 direction = direction %(turn_instruction, abs(change_direction), dist)
-                                                speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist/100), int((dist%100)/10))
+                                                #speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist/100), int((dist%100)/10))
                                         else:
                                                 turn_instruction = 'go straight'
                                                 direction = direction %(turn_instruction, change_direction, dist)
-                                                speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
+                                                #speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
 
                                         print direction
-                                        speaker.threadedFeedback(speak_direction)
+                                        #speaker.threadedFeedback(speak_direction)
                                 else:
-                                        #print "checkpoint reached!"
-                                        sayReachCheckPoint = 'checkpoint reached!\n'
-                                        speaker.threadedFeedback(sayReachCheckPoint)
+                                        print "checkpoint reached!"
+##                                        sayReachCheckPoint = 'checkpoint reached!\n'
+##                                        speaker.threadedFeedback(sayReachCheckPoint)
                                         reachCheckPoint = True
                                         break
                         
@@ -256,14 +258,14 @@ class Map:
                         if sayPathRoute:
                                 for i in range(len(path)): #print in reverse order
                                         print path[len(path)-1-i], mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
-                                        if i == 0:
-                                                firstNode = 'the path route starts from %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
-                                                routeSpeechInfo = routeSpeechInfo + firstNode
-                                        else:
-                                                nextNode = 'followed by %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
-                                                routeSpeechInfo = routeSpeechInfo + nextNode
-                                routeSpeechInfo = routeSpeechInfo + '\n'
-                                speaker.threadedFeedback(routeSpeechInfo)
+##                                        if i == 0:
+##                                                firstNode = 'the path route starts from %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+##                                                routeSpeechInfo = routeSpeechInfo + firstNode
+##                                        else:
+##                                                nextNode = 'followed by %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+##                                                routeSpeechInfo = routeSpeechInfo + nextNode
+##                                routeSpeechInfo = routeSpeechInfo + '\n'
+##                                speaker.threadedFeedback(routeSpeechInfo)
                                 sayPathRoute = False
                         
                         reachCheckPoint = True
@@ -284,9 +286,9 @@ class Map:
                                         if reachCheckPoint:
                                                 currentCheckPoint = nextCheckPoint
                                         if detourCheckPoint:
-                                                #print 'detour!'
-                                                sayDetour = 'detour! recalculating route'
-                                                speaker.threadedFeedback(sayDestinationReached)
+                                                print 'detour!'
+                                                #sayDetour = 'detour! recalculating route'
+                                                #speaker.threadedFeedback(sayDestinationReached)
                                                 calculatePath = True
                                                 path[:] = []
                                                 sayPathRoute = True
@@ -295,22 +297,33 @@ class Map:
                                         print "INVALID DISTANCE!"
 
                         if ((not path) and (reachDestination == True)):
-                                #print "destination reached!"
-                                sayDestinationReached = 'destination reached!\n'
-                                speaker.threadedFeedback(sayDestinationReached)
+                                print "destination reached!"
+                                #sayDestinationReached = 'destination reached!\n'
+                                #speaker.threadedFeedback(sayDestinationReached)
 if __name__ == '__main__':
         signal.signal(signal.SIGINT, signal_handler)
         building = raw_input()
         level = raw_input()
         internetConnection = False
+        s = shelve.open('map_cache.db')
         while not internetConnection:
                 try:
                         url = 'http://showmyway.comp.nus.edu.sg/getMapInfo.php?Building=%s&Level=%s' %(building, level)
                         mapinfo = json.load(urllib.urlopen(url))
+                        try:
+                                s['map'] = mapinfo
+                        finally:
+                                s.close()
                         internetConnection = True
                 except:
-                        print "NO INTERNET SIGNAL!"
                         internetConnection = False
+                        print "NO INTERNET SIGNAL!"
+                        try:
+                                mapinfo = s['map']
+                                internetConnection = True
+                        finally:
+                                s.close()
+                        
 
         myMap = Map(mapinfo)
 
