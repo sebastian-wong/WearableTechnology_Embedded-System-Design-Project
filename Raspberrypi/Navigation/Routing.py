@@ -6,13 +6,15 @@ import urllib
 import Queue as queue
 
 import signal
+import threading
 import time
 
 from data_parser import DataParser
+from espeak_cls import AudioFeedback
 
-#def signal_handler(signal, frame):
- #       sys.modules[__name__].__dict__.clear()
-  #      sys.exit(0)
+def signal_handler(signal, frame):
+        #sys.modules[__name__].__dict__.clear()
+        sys.exit(0)
 
 class Map:
         AdjList = []
@@ -115,120 +117,155 @@ class Map:
                 
                 return path
 
-        def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y):
+        def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker):
+                #threading.Timer(1.0, provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)).start()
                 print "start of function"
+                speaker.threadedFeedback(sayNextCheckPoint)
                 detourCheckPoint = False
                 reachCheckPoint = False
+                start_time = time.time()
+
                 while True:
-                        #distance, heading = input()
-                        dataParser = DataParser()
-                        distance = input()
-                        heading_arr = dataParser.get_compass_read()
-                        heading = heading_arr[0]
-                        print "distance", distance
-                        print "heading", heading
-                        if distance < 0:
-                                raise Exception("negative distance invalid")
-                        print "distance is not the problem"
-                        #compensating for map northAt
-                        heading = int(heading) - (360 - Map.northAt)
-                        heading %= 360
+                        if (time.time() - start_time > 1):
+                                start_time = time.time()
+                                #distance, heading = input()
+                                #dataParser = DataParser()
+                                #distance = input()
+                                #heading_arr = dataParser.get_compass_read()
+                                #heading = heading_arr[0]
+                                #del dataParser
+                                dataParser = DataParser()
+                                step = dataParser.get_step_read()
+                                print "step", step
+                                compass_read = dataParser.get_compass_read()
+                                print "compass_read", compass_read
+                                per_step_dist = 40
+                                distance = step * per_step_dist
+                                heading = compass_read[0]
+                                del dataParser
+                                print "distance", distance
+                                print "heading", heading
+                                if distance < 0:
+                                        raise Exception("negative distance invalid")
+                                print "distance is not the problem"
+                                #compensating for map northAt
+                                heading = int(heading) - (360 - Map.northAt)
+                                heading %= 360
 
-                        print "heading", heading
-                        #calculating displacement
-                        pos_x_delta = distance * math.sin(math.radians(heading))
-                        pos_y_delta = distance * math.cos(math.radians(heading))
+                                print "heading", heading
+                                #calculating displacement
+                                pos_x_delta = distance * math.sin(math.radians(heading))
+                                pos_y_delta = distance * math.cos(math.radians(heading))
 
-                        #calculating new position
-                        pos_x = float(pos_x) + pos_x_delta
-                        pos_y = float(pos_y) + pos_y_delta
-                        print "current coordinates (", pos_x, ", ", pos_y, " )"
-                        #getting coordinates of next checkpoint
-                        checkPoint_x = int(mapinfo['map'][nextCheckPoint - 1]['x'])
-                        checkPoint_y = int(mapinfo['map'][nextCheckPoint - 1]['y'])
-                        dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
-                        checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
+                                #calculating new position
+                                pos_x = float(pos_x) + pos_x_delta
+                                pos_y = float(pos_y) + pos_y_delta
+                                print "current coordinates (", pos_x, ", ", pos_y, " )"
+                                #getting coordinates of next checkpoint
+                                checkPoint_x = int(mapinfo['map'][nextCheckPoint - 1]['x'])
+                                checkPoint_y = int(mapinfo['map'][nextCheckPoint - 1]['y'])
+                                dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
+                                checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
 
-                        #getting coordinates of other adjacent checkpoints
-                        otherCheckPoint = []
-                        str = mapinfo['map'][currentCheckPoint - 1]['linkTo']
-                        print "linkTo", str
-                        otherCheckPoint = [int(s) for s in str.split(",")]
-                        otherCheckPoint.remove(nextCheckPoint)
-                        if len(otherCheckPoint) > 1:
-                                print "number of adjacent checkpoints, ", len(otherCheckPoint)
-                                otherCheckPoint_x = []
-                                otherCheckPoint_y = []
-                                print "still ok"
-                                for i in range(len(otherCheckPoint)):
-                                        otherCheckPoint_x.append(int(mapinfo['map'][otherCheckPoint[i] - 1]['x']))
-                                        otherCheckPoint_y.append(int(mapinfo['map'][otherCheckPoint[i] - 1]['y']))
-                                print "check borders"
-                                print otherCheckPoint_x
-                                print otherCheckPoint_y
-                                left_x = min(otherCheckPoint_x) if min(otherCheckPoint_x) < checkPoint_x else - sys.maxint - 1
-                                right_x = max(otherCheckPoint_x) if max(otherCheckPoint_x) > checkPoint_x else sys.maxint
-                                bottom_y = min(otherCheckPoint_y) if min(otherCheckPoint_y) < checkPoint_y else - sys.maxint - 1
-                                top_y = max(otherCheckPoint_y) if max(otherCheckPoint_y) > checkPoint_y else sys.maxint
-                                
-                                if (pos_x <= left_x or pos_x >= right_x) or (pos_y <= bottom_y or pos_y >= top_y):
-                                        detourCheckPoint = True
-                                        return reachCheckPoint, pos_x, pos_y, detourCheckPoint
+                                #getting coordinates of other adjacent checkpoints
+                                otherCheckPoint = []
+                                str = mapinfo['map'][currentCheckPoint - 1]['linkTo']
+                                print "linkTo", str
+                                otherCheckPoint = [int(s) for s in str.split(",")]
+                                otherCheckPoint.remove(nextCheckPoint)
+                                if len(otherCheckPoint) > 1:
+                                        print "number of adjacent checkpoints, ", len(otherCheckPoint)
+                                        otherCheckPoint_x = []
+                                        otherCheckPoint_y = []
+                                        print "still ok"
+                                        for i in range(len(otherCheckPoint)):
+                                                otherCheckPoint_x.append(int(mapinfo['map'][otherCheckPoint[i] - 1]['x']))
+                                                otherCheckPoint_y.append(int(mapinfo['map'][otherCheckPoint[i] - 1]['y']))
+                                        print "check borders"
+                                        print otherCheckPoint_x
+                                        print otherCheckPoint_y
+                                        left_x = min(otherCheckPoint_x) if min(otherCheckPoint_x) < checkPoint_x else - sys.maxint - 1
+                                        right_x = max(otherCheckPoint_x) if max(otherCheckPoint_x) > checkPoint_x else sys.maxint
+                                        bottom_y = min(otherCheckPoint_y) if min(otherCheckPoint_y) < checkPoint_y else - sys.maxint - 1
+                                        top_y = max(otherCheckPoint_y) if max(otherCheckPoint_y) > checkPoint_y else sys.maxint
+                                        
+                                        if (pos_x <= left_x or pos_x >= right_x) or (pos_y <= bottom_y or pos_y >= top_y):
+                                                detourCheckPoint = True
+                                                return reachCheckPoint, pos_x, pos_y, detourCheckPoint
 
-                        try:
-                                tan_direction = checkpoint_direction[1] / checkpoint_direction[0]
-                        except ZeroDivisionError:
-                                if checkpoint_direction[1] >= 0:
-                                        tan_direction = sys.maxint
+                                try:
+                                        tan_direction = checkpoint_direction[1] / checkpoint_direction[0]
+                                except ZeroDivisionError:
+                                        if checkpoint_direction[1] >= 0:
+                                                tan_direction = sys.maxint
+                                        else:
+                                                tan_direction = - sys.maxint - 1
+
+                                heading_direction = math.degrees(math.atan(tan_direction))
+                                if checkpoint_direction[1] >= 0 and checkpoint_direction[0] >= 0:
+                                        heading_direction = 90 - heading_direction
+                                elif checkpoint_direction[1] < 0 and checkpoint_direction[0] >= 0:
+                                        heading_direction = 90 - heading_direction
+                                elif checkpoint_direction[1] < 0 and checkpoint_direction[0] < 0:
+                                        heading_direction = 270 - heading_direction
                                 else:
-                                        tan_direction = - sys.maxint - 1
+                                        heading_direction = 270 - heading_direction
 
-                        heading_direction = math.degrees(math.atan(tan_direction))
-                        if checkpoint_direction[1] >= 0 and checkpoint_direction[0] >= 0:
-                                heading_direction = 90 - heading_direction
-                        elif checkpoint_direction[1] < 0 and checkpoint_direction[0] >= 0:
-                                heading_direction = 90 - heading_direction
-                        elif checkpoint_direction[1] < 0 and checkpoint_direction[0] < 0:
-                                heading_direction = 270 - heading_direction
-                        else:
-                                heading_direction = 270 - heading_direction
+                                direction = '%s %lf degrees, %lf'
+                                speak_direction = '%s %d degrees, and walk %d point %d meters\n'
+                                change_direction = heading_direction - heading
+                                if change_direction > 180:
+                                        change_direction = -1 * (change_direction - 180)
+                                elif change_direction < -180:
+                                        change_direction = -1 * (change_direction + 180)
+                                        
+                                if dist >= 20:
+                                        if change_direction >= 10:
+                                                turn_instruction = 'turn clockwise'
+                                                direction = direction %(turn_instruction, change_direction, dist)
+                                                speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
+                                        elif change_direction <= -10:
+                                                turn_instruction = 'turn anticlockwise'
+                                                direction = direction %(turn_instruction, abs(change_direction), dist)
+                                                speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist/100), int((dist%100)/10))
+                                        else:
+                                                turn_instruction = 'go straight'
+                                                direction = direction %(turn_instruction, change_direction, dist)
+                                                speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
 
-                        direction = '%s %lf degrees, %lf'
-                        change_direction = heading_direction - heading
-                        if change_direction > 180:
-                                change_direction = -1 * (change_direction - 180)
-                        elif change_direction < -180:
-                                change_direction = -1 * (change_direction + 180)
-                                
-                        if dist >= 20:
-                                if change_direction >= 10:
-                                        turn_instruction = 'turn clockwise'
-                                        direction = direction %(turn_instruction, change_direction, dist)
-                                elif change_direction <= -10:
-                                        turn_instruction = 'turn anticlockwise'
-                                        direction = direction %(turn_instruction, abs(change_direction), dist)
+                                        print direction
+                                        speaker.threadedFeedback(speak_direction)
                                 else:
-                                        turn_instruction = 'go straight'
-                                        direction = direction %(turn_instruction, change_direction, dist)
-
-                                print direction
-                        else:
-                                print "checkpoint reached!"
-                                reachCheckPoint = True
-                                break
+                                        #print "checkpoint reached!"
+                                        sayReachCheckPoint = 'checkpoint reached!\n'
+                                        speaker.threadedFeedback(sayReachCheckPoint)
+                                        reachCheckPoint = True
+                                        break
                         
                 return reachCheckPoint, pos_x, pos_y, detourCheckPoint
-        def provideGuidance(self):
+        def provideNavigation(self):
                 reachDestination = False
                 calculatePath = True
+                sayPathRoute = True
+                speaker = AudioFeedback()
                 while reachDestination == False:
                         if calculatePath == True:
                                 path = myMap.SSSP(startNode, destNode)
                                 calculatePath = False
 
-                        print "print first time"
-                        for i in range(len(path)):
-                                print path[i]
+                        if sayPathRoute:
+                                for i in range(len(path)): #print in reverse order
+                                        print path[len(path)-1-i], mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                        if i == 0:
+                                                firstNode = 'the path route starts from %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                                routeSpeechInfo = routeSpeechInfo + firstNode
+                                        else:
+                                                nextNode = 'followed by %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
+                                                routeSpeechInfo = routeSpeechInfo + nextNode
+                                routeSpeechInfo = routeSpeechInfo + '\n'
+                                speaker.threadedFeedback(routeSpeechInfo)
+                                sayPathRoute = False
+                        
                         reachCheckPoint = True
                         currentCheckPoint = path.pop()
                         pos_x = mapinfo['map'][currentCheckPoint-1]['x']
@@ -243,27 +280,26 @@ class Map:
                                                 reachDestination = True
                                         print nextCheckPoint, mapinfo['map'][nextCheckPoint-1]['nodeName']
                                 try:
-                                        #start_time = time.time()
-                                        #timing_interval = 1
-                                        #count_time = 0
-                                        while not reachCheckPoint:
-                                                #time.sleep(start_time + count_time * timing_interval - time.time())
-                                                reachCheckPoint, pos_x, pos_y, detourCheckPoint = self.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)
-                                                if reachCheckPoint:
-                                                        currentCheckPoint = nextCheckPoint
-                                                if detourCheckPoint:
-                                                        print "detour!"
-                                                        calculatePath = True
-                                                        path[:] = []
-                                                        break
-                                                #count_time = count_time + 1
+                                        reachCheckPoint, pos_x, pos_y, detourCheckPoint = self.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)                                                        
+                                        if reachCheckPoint:
+                                                currentCheckPoint = nextCheckPoint
+                                        if detourCheckPoint:
+                                                #print 'detour!'
+                                                sayDetour = 'detour! recalculating route'
+                                                speaker.threadedFeedback(sayDestinationReached)
+                                                calculatePath = True
+                                                path[:] = []
+                                                sayPathRoute = True
+                                                break
                                 except Exception:
                                         print "INVALID DISTANCE!"
 
                         if ((not path) and (reachDestination == True)):
-                                print "destination reached!"
+                                #print "destination reached!"
+                                sayDestinationReached = 'destination reached!\n'
+                                speaker.threadedFeedback(sayDestinationReached)
 if __name__ == '__main__':
-        #signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
         building = raw_input()
         level = raw_input()
         internetConnection = False
@@ -288,4 +324,4 @@ if __name__ == '__main__':
         except Exception:
                 print "INVALID LOCATION!"
         else:        
-                myMap.provideGuidance()
+                myMap.provideNavigation()
