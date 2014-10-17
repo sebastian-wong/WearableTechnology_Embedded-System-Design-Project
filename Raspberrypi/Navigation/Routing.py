@@ -347,11 +347,17 @@ def stringParser(userInput):
                         pass
         #print sample[j]
         for k in range(len(sample)):
-                if ( type(sample[k]) is type(str()) ) and ( len(sample[k]) == 1 ) and ( k < len(sample) - 1 ) \
+                if sample[k] == 'COM':
+                        userInput_proc = userInput_proc + sample[k]
+                elif ( sample[k] == 'HYPHEN'):
+                        userInput_proc = userInput_proc + '-'
+                elif ( type(sample[k]) is type(str()) ) and ( len(sample[k]) == 1 ) and ( k < len(sample) - 1 ) \
                    and ( ( ( type(sample[k+1]) is type(str()) ) and ( len(sample[k+1]) == 1 ) ) or ( type(sample[k+1]) is int ) ):
                         userInput_proc = userInput_proc + sample[k]
+                elif ( k < len(sample) - 1 ) and ( sample[k+1] == 'HYPHEN' ):
+                        userInput_proc = userInput_proc + str(sample[k])
                 else:
-                    userInput_proc = userInput_proc + str(sample[k]) + ' '
+                        userInput_proc = userInput_proc + str(sample[k]) + ' '
         print userInput_proc
 
 
