@@ -43,7 +43,7 @@ class Map:
                         nodeConnectVector.append(linkTo)
                         nodeConnectList.append(nodeConnectVector)
                         nodeConnectVector = []
-                        
+
                 coordinatesNodes = []
                 for i in range(len(mapinfo['map'])):
                         integerPair = [mapinfo['map'][i]['x'], mapinfo['map'][i]['y']]
@@ -72,7 +72,7 @@ class Map:
 
                 Map.mapinfo = mapinfo
                 Map.northAt = northAt
-                
+
         def searchNodeId(self, nodeName):
                 for i in mapinfo['map']:
                         if i['nodeName'].lower() == nodeName.lower():
@@ -93,20 +93,20 @@ class Map:
                 for i in range(len(mapinfo['map'])):
                         Map.distance.append(sys.maxint)
                         Map.prev.append(None)
-                        
+
                 Map.distance[start-1] = 0
-                
+
                 integerPair = [Map.distance[start-1], start]
                 Map.pq.put(integerPair)
-                
+
                 while not Map.pq.empty():
                         front = Map.pq.get()
                         if(front[0] == Map.distance[front[1]-1]):
                                 for j in range(len(Map.AdjList[front[1]-1])-1):
                                         self.relax(front[1], Map.AdjList[front[1]-1][j+1][0], Map.AdjList[front[1]-1][j+1][1])
-                
+
                 shortestTime = sys.maxint
-                
+
                 if Map.distance[end-1] < shortestTime:
                         shortestTime = Map.distance[end-1]
 
@@ -116,7 +116,7 @@ class Map:
                 while Map.prev[backtrack] != None:
                         path.append(Map.prev[backtrack])
                         backtrack = Map.prev[backtrack] - 1
-                
+
                 return path
 
         def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker):
@@ -191,7 +191,7 @@ class Map:
                                         right_x = max(otherCheckPoint_x) if max(otherCheckPoint_x) > checkPoint_x else sys.maxint
                                         bottom_y = min(otherCheckPoint_y) if min(otherCheckPoint_y) < checkPoint_y else - sys.maxint - 1
                                         top_y = max(otherCheckPoint_y) if max(otherCheckPoint_y) > checkPoint_y else sys.maxint
-                                        
+
                                         if (pos_x <= left_x or pos_x >= right_x) or (pos_y <= bottom_y or pos_y >= top_y):
                                                 detourCheckPoint = True
                                                 return reachCheckPoint, pos_x, pos_y, detourCheckPoint
@@ -221,7 +221,7 @@ class Map:
                                         change_direction = -1 * (change_direction - 180)
                                 elif change_direction < -180:
                                         change_direction = -1 * (change_direction + 180)
-                                        
+
                                 if dist >= 20:
                                         if change_direction >= 10:
                                                 turn_instruction = 'turn clockwise'
@@ -244,7 +244,7 @@ class Map:
                                         speaker.threadedFeedback(sayReachCheckPoint)
                                         reachCheckPoint = True
                                         break
-                        
+
                 return reachCheckPoint, pos_x, pos_y, detourCheckPoint
         def provideNavigation(self):
                 reachDestination = False
@@ -269,13 +269,13 @@ class Map:
                                 routeSpeechInfo = routeSpeechInfo + '\n'
                                 speaker.threadedFeedback(routeSpeechInfo)
                                 sayPathRoute = False
-                        
+
                         reachCheckPoint = True
                         currentCheckPoint = path.pop()
                         pos_x = mapinfo['map'][currentCheckPoint-1]['x']
                         pos_y = mapinfo['map'][currentCheckPoint-1]['y']
                         print "pos_x = ", pos_x, " pos_y = ", pos_y
-                        
+
                         while path:
                                 if reachCheckPoint:
                                         reachCheckPoint = False
@@ -284,7 +284,7 @@ class Map:
                                                 reachDestination = True
                                         print nextCheckPoint, mapinfo['map'][nextCheckPoint-1]['nodeName']
                                 try:
-                                        reachCheckPoint, pos_x, pos_y, detourCheckPoint = self.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker)                                                        
+                                        reachCheckPoint, pos_x, pos_y, detourCheckPoint = self.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker)
                                         if reachCheckPoint:
                                                 currentCheckPoint = nextCheckPoint
                                         if detourCheckPoint:
@@ -302,12 +302,71 @@ class Map:
                                 print "destination reached!"
                                 sayDestinationReached = 'destination reached!\n'
                                 speaker.threadedFeedback(sayDestinationReached)
+
+def text2int(textnum, numwords={}):
+    if not numwords:
+      units = [
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+        "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+        "sixteen", "seventeen", "eighteen", "nineteen",
+      ]
+
+      tens = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+
+      scales = ["hundred", "thousand", "million", "billion", "trillion"]
+
+      numwords["and"] = (1, 0)
+      for idx, word in enumerate(units):    numwords[word] = (1, idx)
+      for idx, word in enumerate(tens):     numwords[word] = (1, idx * 10)
+      for idx, word in enumerate(scales):   numwords[word] = (10 ** (idx * 3 or 2), 0)
+
+    current = result = 0
+    for word in textnum.split():
+        if word not in numwords:
+          raise Exception("Illegal word: " + word)
+
+        scale, increment = numwords[word]
+        current = current * scale + increment
+        if scale > 100:
+            result += current
+            current = 0
+
+    return result + current
+
+
+def stringParser(userInput):
+        sample = re.split(r'\s*', userInput)
+        userInput_proc = ''
+        for j in range(len(sample)):
+                if (j > 0 and sample[j] == 'TO'):
+                        sample[j] = 'TWO'
+                try:
+                        number = text2int(sample[j].lower())
+                        sample[j] = number
+                except:
+                        pass
+        #print sample[j]
+        for k in range(len(sample)):
+                if ( type(sample[k]) is type(str()) ) and ( len(sample[k]) == 1 ) and ( k < len(sample) - 1 ) \
+                   and ( ( ( type(sample[k+1]) is type(str()) ) and ( len(sample[k+1]) == 1 ) ) or ( type(sample[k+1]) is int ) ):
+                        userInput_proc = userInput_proc + sample[k]
+                else:
+                    userInput_proc = userInput_proc + str(sample[k]) + ' '
+        print userInput_proc
+
+
 if __name__ == '__main__':
         signal.signal(signal.SIGINT, signal_handler)
-        building = raw_input()
-        level = raw_input()
+        #building = raw_input()
+        #level = raw_input()
         internetConnection = False
 	speechInput = SpeechRecognition()
+	building = speechInput.speechRecognise()
+	level = speechInput.speechRecognise()
+
+        building = stringParser(building)
+	level = text2int(level)
+
         s = shelve.open('map_cache.db')
         while not internetConnection:
                 try:
@@ -326,7 +385,7 @@ if __name__ == '__main__':
                                 internetConnection = True
                         finally:
                                 s.close()
-                        
+
 
         myMap = Map(mapinfo)
 
@@ -336,10 +395,13 @@ if __name__ == '__main__':
 	startPlace = speechInput.speechRecognise()
 	destPlace = speechInput.speechRecognise()
 
+	startPlace = stringParser(startPlace)
+	destPlace = stringParser(destPlace)
+
         try:
                 startNode = int(myMap.searchNodeId(startPlace))
                 destNode = int(myMap.searchNodeId(destPlace))
         except Exception:
                 print "INVALID LOCATION!"
-        else:        
+        else:
                 myMap.provideNavigation()
