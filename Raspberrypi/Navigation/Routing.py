@@ -4,6 +4,7 @@ import math
 import json
 import urllib
 import Queue as queue
+import re
 
 import signal
 import threading
@@ -338,7 +339,7 @@ def stringParser(userInput):
         sample = re.split(r'\s*', userInput)
         userInput_proc = ''
         for j in range(len(sample)):
-                if (j > 0 and sample[j] == 'TO'):
+                if ((j > 0 or len(sample) == 1) and sample[j] == 'TO'):
                         sample[j] = 'TWO'
                 try:
                         number = text2int(sample[j].lower())
@@ -359,6 +360,7 @@ def stringParser(userInput):
                 else:
                         userInput_proc = userInput_proc + str(sample[k]) + ' '
         print userInput_proc
+	return userInput_proc.rstrip()
 
 
 if __name__ == '__main__':
@@ -371,7 +373,7 @@ if __name__ == '__main__':
 	level = speechInput.speechRecognise()
 
         building = stringParser(building)
-	level = text2int(level)
+	level = stringParser(level)
 
         s = shelve.open('map_cache.db')
         while not internetConnection:
