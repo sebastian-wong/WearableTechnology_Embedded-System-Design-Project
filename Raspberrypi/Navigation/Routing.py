@@ -75,8 +75,23 @@ class Map:
                 Map.northAt = northAt
 
         def searchNodeId(self, nodeName):
-                for i in mapinfo['map']:
-                        if i['nodeName'].lower() == nodeName.lower():
+                searchByName = True
+                searchNodeId = []
+                sample = re.split(r'\s*', nodeName)
+                if sample[0].lower() == 'node':
+                        searchByName = False
+                        for i in range(len(sample)-1):
+                                if type(sample[i+1]) is int:
+                                        searchNodeId.append(sample[i+1])
+                if searchByName:
+                        for i in mapinfo['map']:
+                                if i['nodeName'].lower() == nodeName.lower():
+                                        print "found"
+                                        return i['nodeId']
+                else:
+                        searchNodeId = int(''.join(map(str,array)))
+                        for i in mapinfo['map']:
+                                if int(i['nodeId']) == searchNodeId:
                                 print "found"
                                 return i['nodeId']
                 raise Exception("invalid location!")
