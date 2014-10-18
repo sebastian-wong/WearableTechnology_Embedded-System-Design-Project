@@ -79,21 +79,24 @@ class Map:
                 searchNodeId = []
                 sample = re.split(r'\s*', nodeName)
                 if sample[0].lower() == 'node':
+			print "searching by node number"
                         searchByName = False
                         for i in range(len(sample)-1):
                                 if type(sample[i+1]) is int:
                                         searchNodeId.append(sample[i+1])
+			print "searchNodeId is ", searchNodeId
                 if searchByName:
                         for i in mapinfo['map']:
                                 if i['nodeName'].lower() == nodeName.lower():
                                         print "found"
                                         return i['nodeId']
                 else:
-                        searchNodeId = int(''.join(map(str,array)))
-                        for i in mapinfo['map']:
+                        searchNodeId = int(''.join(map(int,array)))
+                        print "searchNodeId is ", searchNodeId
+			for i in mapinfo['map']:
                                 if int(i['nodeId']) == searchNodeId:
-                                print "found"
-                                return i['nodeId']
+                                	print "found"
+                                	return i['nodeId']
                 raise Exception("invalid location!")
 
         def relax(self, u, v, w):
