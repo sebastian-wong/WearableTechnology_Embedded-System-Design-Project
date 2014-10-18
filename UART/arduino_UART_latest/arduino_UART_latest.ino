@@ -7,7 +7,6 @@
 
 uint8_t input = 0; //for incoming serial data
 uint8_t sensor_Len = 19;
-uint8_t motor_Len= 8;
 uint8_t divisor = 17;
 
 //for UART1
@@ -30,8 +29,6 @@ static uint8_t const ACK       = 2;
 static uint8_t const NAK       = 3;
 static uint8_t const READ      = 4;
 static uint8_t const ACK_READ  = 5;
-static uint8_t const WRITE     = 6;
-static uint8_t const ACK_WRITE = 7;
 static uint8_t const ACK_CHECKSUM = 8;
 static uint8_t const NUM        = 9;
 static uint8_t const ACK_NUM   = 40;
@@ -62,38 +59,15 @@ static uint8_t const ACK_S16 = 26;
 static uint8_t const ACK_S17 = 27;
 static uint8_t const ACK_S18 = 28;
 
-//Actuator Acknowlegements 
-static uint8_t const  ACK_A0 = 30;
-static uint8_t const  ACK_A1 = 31;
-static uint8_t const  ACK_A2 = 32;
-static uint8_t const  ACK_A3 = 33;
-static uint8_t const  ACK_A4 = 34;
-static uint8_t const  ACK_A5 = 35;
-static uint8_t const  ACK_A6 = 36;
-static uint8_t const  ACK_A7 = 37;
-static uint8_t const  ACK_A_SUCCESS = 240;
-static uint8_t const  ACK_A_FAILURE = 241;
-
-
 //Buffer storing all sensor values - Index of buffer represents id of sensor 
 uint8_t sensorData[19]   = {100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118};
 
-//Buffer storing all actuator values - Index of buffer represents id of actuator
-uint8_t actuatorData[10] = {200, 201, 202, 203, 204, 205, 206, 207, 208, 209};
-
-//Temporary actuator buffer used when reading actuator values
-uint8_t actuatorDataTemp[10] = {0};
-
+//to get from numpad file
 volatile char parser_buffer_keys_copy[10] = {'1', '5', '7', '9'};
-volatile int buffer_keys_count = 4;
-volatile int key_size = buffer_keys_count;
+volatile int key_size = 4;
 volatile uint8_t ActivateVoiceRpiFlag = 0;
 volatile uint8_t enter_pressed = 1;
 volatile uint8_t enter = 0;
-
-int dataCorrupted = -1;
-
-
 
 void USART_init(void)
 {
@@ -246,47 +220,6 @@ void sendCheckSum(){
 //   Serial.write(" Sent\n");
 }
 
-void storeTempActuatorData(uint8_t incomingByte, uint8_t index){
-    actuatorDataTemp[index] = incomingByte;  
-//    Serial.print(incomingByte);
-//    Serial.print("\n");
-}
-
-void storeActuatorData(){
-    int index = 0;
-    for (index = 0; index < motor_Len; index++){
-        actuatorData[index] = actuatorDataTemp[index];
-        actuatorDataTemp[index] = 0;
-    }
-}
-
-void sendActuatorAck(uint8_t index){
-    switch (index){
-        case 0: USART_send(ACK_A0); break;
-        case 1: USART_send(ACK_A1); break;
-        case 2: USART_send(ACK_A2); break;
-        case 3: USART_send(ACK_A3); break;
-        case 4: USART_send(ACK_A4); break;
-        case 5: USART_send(ACK_A5); break;
-        case 6: USART_send(ACK_A6); break;
-        case 7: USART_send(ACK_A7); break;
-        case 8: USART_send(ACK_A_SUCCESS); break;
-        case 9: USART_send(ACK_A_FAILURE); break;
-    }
-}
-
-int computeChecksumActuator(){
-    uint8_t checkSum = 0;
-    uint8_t remainder = 0;
-    uint8_t index = 0;
-    
-    for(index = 0; index < motor_Len; index++){
-        remainder = actuatorDataTemp[index] % divisor;
-        checkSum = checkSum + remainder;
-    }
-    
-    return checkSum;
-}
 uint8_t computeChecksumKeypad(){
     uint8_t checkSum = 0;
     uint8_t remainder = 0;
@@ -298,13 +231,6 @@ uint8_t computeChecksumKeypad(){
     }
     
     return checkSum;
-}
-int verifyCheckSum(uint8_t checkSumOld){
-    uint8_t checkSumNew = computeChecksumActuator();
-    if(checkSumOld == checkSumNew)
-       return 1;
-       
-    return 0;
 }
 
 void setup(){
@@ -393,61 +319,8 @@ void loop()
                 
                 case ACK_CHECKSUM : break;
                 
-                case WRITE : {
-                      USART_send(ACK_WRITE);
-                      while (index != motor_Len+1){
-//                            Serial.write("Rpi writing...\n");
-                           if( USART_available() ){
-                               input = USART_read();
-                               if(input)
-                               {
-                               if(index < motor_Len){ 
-                                   storeTempActuatorData(input, index);
-//                                   Serial.write(char(index+48));
-//                                   Serial.write("\n");
-                                   sendActuatorAck(index);
-                                   
-                 
-                              } else if(index == motor_Len) {
-                                   uint8_t checkSum = input;
-//                                   printCheckSum(checkSum);
-                                    if(verifyCheckSum(checkSum)){
-                                        sendActuatorAck(8);
-                                        storeActuatorData();
-                                    }
-                                    else{
-                                      sendActuatorAck(9);
-                                    }
-                              }
-                              index++;
-                              input = 0;
-                               }
-                           }  
-                      }
-                      
-                      break;
                 }
-                
             }
         }
-        
   }
-  
-//    digitalWrite(12, LOW);
-//    if(StrRxFlag)
-//    {
-//      //USART_putstring(buffer);
-//      if(buffer[0]=='b')
-//      {
-//      USART_send('c');
-//      //USART_send('\r');
-//      //USART_send('\n');
-//      }
-//      else if(buffer[0]=='d')
-//      {
-//        USART_send('e');
-//      }
-//       StrRxFlag=0;
-//    }
-//    //USART_send('h');
 }
