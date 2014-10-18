@@ -33,7 +33,6 @@ ACK_S_FAILURE = 101
 ACK_A = [30,31,32,33,34,35,36,37]
 ACK_A_SUCCESS = 240
 ACK_A_FAILURE = 241
-loc = 0
 activate_voice = 0
 #Steps for this second up to 5 steps: 1 byte
 #Compass bearings for those steps: 5 bytes
@@ -75,6 +74,26 @@ def establish_connection():
 	        print('Sent ACK.')	
 	        connectionStatus = 1
 	        print('---Connection Established---')
+
+def location_input():
+	loc = 0
+	while loc != 1:
+		request = port.read(1)
+		if request:
+        		if ord(request) == VOICE:
+	                        port.write(chr(ACK_VOICE))
+#       	                port.read(10)
+                	        print("voice activated")
+	 	    	            loc = 1
+							return 1
+	                elif ord(request) == NUM:
+        	                print("reading numpad")
+							loc = 1
+#               	        port.read(10)
+							return 2
+		else:
+			print("no input")
+
 
 def verifyNumChecksum(length):
 	index = 0
@@ -124,6 +143,7 @@ def get_numpad_input():
 				port.write(chr(NACK_NUM_CHECKSUM))
 				print("NACK_NUM_CHECKSUM")
 				characterReceived = characterReceived + 1
+	return numpadData
 
 def get_sensor_data():
 	global connectionStatus
@@ -228,25 +248,17 @@ def actuator_checksum():
 
 while connectionStatus != 1:
 	establish_connection()
-while loc != 1:
-	request = port.read(1)
-	if request:
-		if ord(request) == VOICE:
-			port.write(chr(ACK_VOICE))
-#			port.read(10)
-			print("voice activated")
-			loc = 1
-			activate_voice = 1
-		elif ord(request) == NUM:
-			print("reading numpad")
-#			port.read(10)
-			get_numpad_input()
-			print(loc)
-	else:
-		print("no input")
+location = location_input()
+if location == 1:
+	print("VOICE activated")
+elif location == 2:
+	print("NUM activated")
+	numpad_temp = list(get_numpad_input())
+	print numpad_temp
 if activate_voice:
 	print("voice activated")
-read_sensor = get_sensor_data()
+read_sensor = list(get_sensor_data())
+print(read_sensor)
 #get_sensor_data()
 time.sleep(2)
 write_act = send_actuator_data()
