@@ -6,6 +6,8 @@
 #define array_size 100 
 
 elapsedMillis timeElapsed;
+int ActivateVoiceRpiFlag = 0;
+int EnterFlag = 0;
 
 //for key 5
 
@@ -15,8 +17,7 @@ unsigned int interval_key5 = 500;
 KeyState key_state = IDLE ;
 KeyState prev_key_state = IDLE ;
 
-
-
+int activate_voice = 0;
 
 int debounceFlag = 0;
 
@@ -69,7 +70,8 @@ void setup(){
 }
 
 void loop(){
- 
+    ActivateVoiceRpiFlag = 0; //This represents the entirety of the function that sends data to the Rpi and resets the flag
+    EnterFlag = 0; //  user input to be taken and send to Rpi and resets the flag
     if(debounceFlag == 0){
       key = keypad.getKey();
       debounceFlag = 1;
@@ -77,59 +79,40 @@ void loop(){
     }
     if(debounceFlag == 1) {
       debounceFlag = 0; //bounce finish
-      key_state = keypad.getKeyState();
-      
-      //to activate voice recognition 
-      if (key != NO_KEY && key == '5' && key_state == 1){
-//        Serial.println("i am here");
-        prev_key_state = key_state;
-//        Serial.println("prev_key_state: ");
-//        Serial.println(prev_key_state);
+      if (key != NO_KEY && key =='5'){
         timeElapsed = 0;
         while (timeElapsed < interval_key5 ){
-         key_state = keypad.getKeyState();
-         Serial.println("key_state: ");
-         Serial.println(key_state);
-         
-         Serial.println("prev_key_state: ");
-         Serial.println(prev_key_state);
-         if (key_state == 1 && prev_key_state == 1){
-            Serial.println("button hold ");
-         }
-         else{
-            Serial.println("button not hold ");
+          key_state = keypad.getKeyState();     
+          if((key_state == 3 && prev_key_state == 1)){ 
+            activate_voice = 0; 
             break;
-         }
-         prev_key_state = key_state;
-               
-        } 
-      
-        if(timeElapsed >= interval_key5 && (key_state == 1 && prev_key_state == 1)){
-          Serial.println("time to activate voice recognition");
-          check_key = 1;
-          key = '?';
-          prev_key = '?';
-          Serial.println(check_key);
-          check_key = 0; //deactivated voice recognition 
-        }     
-      }
-//        timeElapsed = 0;
-//        prev_key_state = key_state;
-//        while (timeElapsed < interval_key5){
-//          key_state = keypad.getKeyState();
-//          if(!(key_state == 2 && prev_key_state == 2)){
-//            break;
-//          }
-//          prev_key_state = key_state;
-//        }
-//        if(timeElapsed >= interval_key5 && (key_state == 2 && prev_key_state == 2)){
-//          Serial.println("time to activate voice recognition");
-//        }
-//      }       
-      if (key != NO_KEY)
-       checkKey();
-    }
+          } 
+          prev_key_state = key_state;
+        }  
+         
+        if (key_state == 1 && prev_key_state == 1){
+          activate_voice = 1;
+          ActivateVoiceRpiFlag = 1; //The sending function will set this flag to 0 when it is sent
+        }   
 
+         
+        if (activate_voice == 0){
+          checkKey();
+         }
+         
+        Serial.print("activate_voice : "); //set some other flag to send data to RPi
+        Serial.println(activate_voice);
+        activate_voice = 0;
+        prev_key_state = key_state;
+        key = '?';       
+        
+      }
+          
+      else if (key != NO_KEY && key != '5'){   
+        checkKey();         
+      }
+   }  
+    
 }
       
 void checkKey(){
@@ -1010,19 +993,25 @@ void checkKey(){
     // case # - enter all input in the buffer    
     case '#': 
       Serial.println("case #");   
+      EnterFlag = 1;
        
-      for(counter = 0; counter < array_size; counter++){
+      for(counter = 0; counter < array_size; counter++)
         parser_buffer_keys[counter] = buffer_keys[counter];
-       }
-               
+              
       for(counter = 0; counter <array_size; counter++)
         Serial.println(parser_buffer_keys[counter]); 
-       
+//      counter = 0;
+//      while(counter < buffer_keys_count){
+//       parser_buffer_keys[counter] = buffer_keys[counter];  
+//       counter++; 
+//      }
+//      
+//      counter = 0;
+//      for(counter = 0; counter <buffer_keys_count; counter++)
+//       Serial.println(parser_buffer_keys[counter]); 
        
       for (counter= 0; counter< array_size; counter++)
-        buffer_keys[counter] = '?';
-
-   
+        buffer_keys[counter] = '?';   
  
       prev_key = key;
       key = '?';
