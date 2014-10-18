@@ -6,6 +6,7 @@
 
 elapsedMillis timeElapsed;
 int debounceFlag = 0;
+int ActivateVoiceRpiFlag = 0;
 
 int counter = 0; //used in loops in various cases 
 
@@ -15,9 +16,25 @@ unsigned int interval = 1500;
 
 char key = '?'; //invalid input from keypad
 
+
 char buffer_keys[array_size]; //temp buffer to store inputs from user
 char parser_buffer_keys[array_size]; //used to retrieve inputs directly 
 int buffer_keys_count = 0;
+
+
+//for key 5
+
+int check_key = 0; //return respond if 5 was pressed to activate voice recognition 
+elapsedMillis timeElapsed_in_case5; 
+unsigned int interval_key5 = 500;
+KeyState key_state = IDLE ;
+KeyState prev_key_state = IDLE ;
+
+int activate_voice = 0;
+
+
+
+
 
 const byte ROWS = 4; 
 const byte COLS = 3; 
@@ -48,6 +65,7 @@ void setup(){
 }
 
 void loop(){
+     ActivateVoiceRpiFlag = 0; //This represents the entirety of the function that sends data to the Rpi and resets the flag
  
     if(debounceFlag == 0){
       key = keypad.getKey();
@@ -64,7 +82,7 @@ void loop(){
        
         }
         
-        else if (key == '#'){
+        if (key == '#'){
           for(counter = 0; counter < array_size; counter++)
             parser_buffer_keys[counter] = buffer_keys[counter];
                
@@ -74,14 +92,60 @@ void loop(){
        
           for (counter= 0; counter< array_size; counter++)
             buffer_keys[counter] = '?';
+            
+         buffer_keys_count = 0;
 
         }
+              
+        if( key != NO_KEY && key!= '*' && key!= '#'){   
        
-        else{      
-          Serial.println(key);
-          buffer_keys[buffer_keys_count] = key;
-          buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
-          //clear
+         if (key == '5'){
+          timeElapsed = 0;
+          while (timeElapsed < interval_key5 ){
+            key_state = keypad.getKeyState();
+//            Serial.println("key_state: ");
+//            Serial.println(key_state);
+//         
+//            Serial.println("prev_key_state: ");
+//            Serial.println(prev_key_state);
+           
+          if((key_state == 3 && prev_key_state == 1)){ 
+            activate_voice = 0; 
+//            Serial.println("Stuff 1 happening!\n");
+            break;
+          } 
+          prev_key_state = key_state;
+         }
+         
+         if (key_state == 1 && prev_key_state == 1){
+             activate_voice = 1;
+             ActivateVoiceRpiFlag = 1; //The sending function will set this flag to 0 when it is sent
+           }   
+
+         
+         if (activate_voice == 0){
+            buffer_keys[buffer_keys_count] = key;
+            buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
+//            Serial.println("Key 5 put into buffer!\n");
+         }
+         
+           
+         
+         Serial.print("activate_voice : "); //set some other flag to send data to RPi
+         Serial.println(activate_voice);
+         activate_voice = 0;
+         prev_key_state = key_state;
+         key = '?';       
+        
+        }
+          
+         else{   
+            Serial.println(key);
+            buffer_keys[buffer_keys_count] = key;
+            buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
+            
+          
+         }
         }  
     }
 
