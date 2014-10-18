@@ -1,14 +1,11 @@
 #include <avr/io.h>
 
-int shoulderLeft, shoulderRight, chestLeft, chestRight, head;
-int waistLeft, waistRight, waistCenter;
+int shoulderLeft, shoulderRight, chestLeft, chestRight, head_ultraound;
+int waistLeft, waistRight, waistCenter, head_IR;
 int ultrasoundTrigPin[5]={10,12,14,16,18}; //Put pins to be triggered here
 int ultrasoundEchoPin[5]={11,13,15,17,19}; //Put pins to receive trigger here
-int shortRangeInfraredPin[3]={5,6};
-int longRangeInfraredPin=7;
-int shortRangeInfraredPolled = 0;
-int longRangeInfraredPolled = 0;
-int ultrasoundPolled = 0;
+int shortRangeInfraredPin[3]={5,6,7};
+int longRangeInfraredPin=8;
 
 void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
 {
@@ -60,7 +57,7 @@ void shortRangeInfraredSensorPoll()
   int infraredPinIndex = 0;
   float v = 0;
   unsigned long currentTotalReading = 0; //This thing is not just currentTotalReading, it's also used to hold the average and the return value.
-  while(infraredPinIndex<2)
+  while(infraredPinIndex<3)
   {
     for(int i=0;i<10;i++) //Poll ten times
     {  
@@ -75,11 +72,13 @@ void shortRangeInfraredSensorPoll()
         waistleft = currentTotalReading;
       case 1:
         waistRight = currentTotalReading;
+      case 2:
+        head_ultrasound = currentTotalReading;
     }
    //Poll infrared sensor using the values of infraredPins[infraredPinIndex]
    infraredPinIndex++; 
   }
-  if(infraredPinIndex=2)
+  if(infraredPinIndex=3)
   {
     //Reset pins
     infraredPinIndex = 0;
