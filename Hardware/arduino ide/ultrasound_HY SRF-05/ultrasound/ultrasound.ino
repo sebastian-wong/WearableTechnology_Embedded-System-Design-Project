@@ -40,10 +40,16 @@ void loop()
 
 
   if(numSamples = 1000){
+    if(cm > 350){
+      Serial.print("Too far!");
+       Serial.print("\n");
+  }
+    else{
     Serial.print(cm);
     Serial.print("cm");
     Serial.println();
     totDist = numSamples = 0;
+  }
   }  
   delay(100);
 }

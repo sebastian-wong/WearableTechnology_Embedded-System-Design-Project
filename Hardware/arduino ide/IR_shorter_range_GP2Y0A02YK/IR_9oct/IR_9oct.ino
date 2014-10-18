@@ -1,6 +1,6 @@
 //Vcc 5v
 
-#define voltoutPin A0
+#define voltoutPin A2
   
 int numSamples = 0;
 float currentir = 0;
@@ -24,13 +24,13 @@ void loop() {
    
    currentir_in_volts = ( float(currentir /1024.0) * float (5.0) ) ;
    
-   if (currentir_in_volts >= 0.35 && currentir_in_volts <= 2.5){
+   //if (currentir_in_volts >= 0.35 && currentir_in_volts <= 2.5){
      distance = convertIRvoltsToDis( float(currentir_in_volts));
      totdistance += distance;
      numSamples++;
-   }
+   //}
    
-    if (numSamples >= 1000){
+    if (numSamples >= 10){
      avedistance = totdistance / numSamples ;
      Serial.println(avedistance);
      numSamples = currentir = currentir_in_volts = distance = totdistance = avedistance = 0;
