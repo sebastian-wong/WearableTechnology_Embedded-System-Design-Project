@@ -87,7 +87,7 @@ uint8_t actuatorDataTemp[10] = {0};
 volatile char parser_buffer_keys_copy[10] = {'1', '5', '7', '9'};
 volatile int buffer_keys_count = 4;
 volatile int key_size = buffer_keys_count;
-volatile uint8_t activate_voice = 0;
+volatile uint8_t ActivateVoiceRpiFlag = 0;
 volatile uint8_t enter_pressed = 1;
 volatile uint8_t enter = 0;
 
@@ -324,7 +324,7 @@ void loop()
         
         case Connected : {
             
-            if(activate_voice == 1){
+            if(ActivateVoiceRpiFlag == 1){
               USART_send(VOICE);
             }
             else if (enter_pressed == 1){

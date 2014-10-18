@@ -161,7 +161,6 @@ def get_sensor_data():
 		print(receivedSensorData)
 		print("Checksum is: ")
 		print(checksum)
-	return receivedSensorData
 
 def send_actuator_data():
 	global connectionStatus
