@@ -20,18 +20,20 @@ ACK_NUM_CHECKSUM = 42;
 NACK_NUM_CHECKSUM = 43;
 VOICE = 44;
 ACK_VOICE = 45;
-receivedSensorData = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+receivedSensorData = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 numpadData = []
-ACK_S = [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28]
+ACK_S = [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28, 29, 30, 31, 32, 33]
 ACK_S_SUCCESS = 100
 ACK_S_FAILURE = 101
+
+sensor_data_size = 24
 #Steps for this second up to 5 steps: 1 byte
-#Compass bearings for those steps: 5 bytes
+#Compass bearings for those steps: 10 bytes #2 bytes = 1 compass reading
 #Gyro readings: 3 bytes
 #Barometer reading: 1 byte
-#Ultrasound readings: 6 bytes
-#IR readings: 2 bytes
-#Total right now: 18 bytes
+#Ultrasound readings: 5 bytes
+#IR readings: 4 bytes #2 bytes = 1 IR reading
+#Total right now: 24 bytes
 
 #send data to arduino, with expected readings
 #timeout if reading not equal to expected reading
@@ -147,6 +149,7 @@ def get_sensor_data():
 	global timeout
 	global ACK_S
 	global receivedSensorData
+	global sensor_data_size
 	sensorValue=0
 	index = 0
 	checksum = -1
@@ -160,17 +163,32 @@ def get_sensor_data():
 		print("ACK_READ received")
 		connectionStatus = 1
 		#Once read connection and status has been established
-	        while index < 19:
+		start = time.time()
+		end = start
+	        while index < sensor_data_size+1 and end-start < 1:
 			sensorValue = port.read(1)
 			if sensorValue:
-				if index == 18:
-					port.write(chr(ACK_S_CHECKSUM))
+				if index == sensor_data_size:
+				#	port.write(chr(ACK_S_CHECKSUM))
 					checksum = ord(sensorValue)
+					if sensor_checksum() == checksum:
+						port.write(chr(ACK_S_CHECKSUM))
+						print(receivedSensorData)
+						print("ACK_S_CHECKSUM sent")
+					else:
+						port.write(chr(NACK_S_CHECKSUM))
+						receivedSensorData = [-1]*24
+						print(receivedSensorData)
+						print("NACK_S_CHECKSUM sent")
 					index = index + 1
 				else:
 					receivedSensorData[index]=ord(sensorValue)
 					port.write(chr(ACK_S[index]))
 					index = index + 1
+				start = time.time()
+				end = start
+			else:
+				end = time.time()
 		print(receivedSensorData)
 		print("Checksum is: ")
 		print(checksum)
@@ -179,26 +197,18 @@ def get_sensor_data():
 #to calculate checksum for received sensor data
 def sensor_checksum():
 	index = 0
-	sumValues = 0
-	while index < 18:
-		sumValues = sumValues + receivedSensorData[index]
+	remainder = 0
+	checksum = 0
+	while index < sensor_data_size:
+		remainder = receivedSensorData[index]%17
+		checksum = checksum + remainder
 		index = index + 1
-	sumValues = sumValues % 17
-	return sumValues
+	print("calculated checksum is:")
+	print(checksum)
+	return checksum
 
 
 #test code
 #handshake
 while connectionStatus != 1:
 	establish_connection()
-#get location type
-location = location_input()
-if location == 1:
-	print("VOICE activated")
-elif location == 2:
-	print("NUM activated")
-	numpad_temp = list(get_numpad_input())
-	print numpad_temp
-#request sensor data ffrom arduino
-read_sensor = list(get_sensor_data())
-print(read_sensor)
