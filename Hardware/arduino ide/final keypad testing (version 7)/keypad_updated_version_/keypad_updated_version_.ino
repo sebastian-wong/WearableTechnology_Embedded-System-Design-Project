@@ -992,27 +992,19 @@ void checkKey(){
    
     // case # - enter all input in the buffer    
     case '#': 
-      Serial.println("case #");   
-      EnterFlag = 1;
-       
+      Serial.println("case #");
+      Serial.print("EnterFlag = ");
+      Serial.println(EnterFlag);   
       for(counter = 0; counter < array_size; counter++)
         parser_buffer_keys[counter] = buffer_keys[counter];
               
       for(counter = 0; counter <array_size; counter++)
-        Serial.println(parser_buffer_keys[counter]); 
-//      counter = 0;
-//      while(counter < buffer_keys_count){
-//       parser_buffer_keys[counter] = buffer_keys[counter];  
-//       counter++; 
-//      }
-//      
-//      counter = 0;
-//      for(counter = 0; counter <buffer_keys_count; counter++)
-//       Serial.println(parser_buffer_keys[counter]); 
-       
+        Serial.println(parser_buffer_keys[counter]);    
       for (counter= 0; counter< array_size; counter++)
         buffer_keys[counter] = '?';   
- 
+      EnterFlag = 1;
+      Serial.print("EnterFlag = ");
+      Serial.println(EnterFlag);
       prev_key = key;
       key = '?';
       break;  
