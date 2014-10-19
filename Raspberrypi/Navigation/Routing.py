@@ -268,11 +268,11 @@ class Map:
                                         break
 
                 return reachCheckPoint, pos_x, pos_y, detourCheckPoint
-        def provideNavigation(self):
+        def provideNavigation(self, speaker):
                 reachDestination = False
                 calculatePath = True
                 sayPathRoute = True
-                speaker = AudioFeedback()
+                
                 while reachDestination == False:
                         if calculatePath == True:
                                 path = myMap.SSSP(startNode, destNode)
@@ -390,10 +390,19 @@ if __name__ == '__main__':
         #level = raw_input()
         internetConnection = False
 	speechInput = SpeechRecognition()
+	speaker = AudioFeedback()
+	
+	speechRecognitionActMsg = 'speech recognition is activated\n'
+	speaker.threadedFeedback(speechRecognitionActMsg)
+	
+	speechBuildingName = 'please enter the name of the building'
+        speaker.threadedFeedback(speechBuildingName)
 	building = speechInput.speechRecognise()
-	level = speechInput.speechRecognise()
+	building = stringParser(building)
 
-        building = stringParser(building)
+	speechBuildingLevel = 'please enter the level of building you are currently in'
+        speaker.threadedFeedback(speechBuildingLevel)
+	level = speechInput.speechRecognise()
 	level = stringParser(level)
 
         s = shelve.open('map_cache.db')
@@ -421,7 +430,13 @@ if __name__ == '__main__':
         print "northAt = ", myMap.northAt
         #startPlace = raw_input()
         #destPlace = raw_input()
+	
+	speechPendingStartLoc = 'please enter your starting location'
+	speaker.threadedFeedback(speechPendingStartLoc)
 	startPlace = speechInput.speechRecognise()
+	
+	speechPendingDestLoc = 'please enter your destination location'
+	speaker.threadedFeedback(speechPendingDestLoc)
 	destPlace = speechInput.speechRecognise()
 
 	startPlace = stringParser(startPlace)
@@ -433,4 +448,4 @@ if __name__ == '__main__':
         except Exception:
                 print "INVALID LOCATION!"
         else:
-                myMap.provideNavigation()
+                myMap.provideNavigation(speaker)
