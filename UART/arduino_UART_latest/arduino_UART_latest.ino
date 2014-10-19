@@ -6,7 +6,7 @@
 #define BAUD_PRESCALER (((F_CPU / (BAUDRATE * 16UL))) - 1)
 
 uint8_t input = 0; //for incoming serial data
-uint8_t sensor_Len = 19;
+uint8_t sensor_Len = 24;
 uint8_t divisor = 17;
 
 //for UART1
@@ -30,6 +30,7 @@ static uint8_t const NAK       = 3;
 static uint8_t const READ      = 4;
 static uint8_t const ACK_READ  = 5;
 static uint8_t const ACK_CHECKSUM = 8;
+static uint8_t const NACK_CHECKSUM = 46;
 static uint8_t const NUM        = 9;
 static uint8_t const ACK_NUM   = 40;
 static uint8_t const NACK_NUM  = 41;
@@ -58,15 +59,30 @@ static uint8_t const ACK_S15 = 25;
 static uint8_t const ACK_S16 = 26;
 static uint8_t const ACK_S17 = 27;
 static uint8_t const ACK_S18 = 28;
+static uint8_t const ACK_S19 = 29;
+static uint8_t const ACK_S20 = 30;
+static uint8_t const ACK_S21 = 31;
+static uint8_t const ACK_S22 = 32;
+static uint8_t const ACK_S23 = 33;
+
+/*
+#Steps for this second up to 5 steps: 1 byte
+#Compass bearings for those steps: 10 bytes #2 bytes = 1 compass reading
+#Gyro readings: 3 bytes
+#Barometer reading: 1 byte
+#Ultrasound readings: 5 bytes
+#IR readings: 4 bytes
+#Total right now: 24 bytes
+*/
 
 //Buffer storing all sensor values - Index of buffer represents id of sensor 
-uint8_t sensorData[19]   = {100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118};
+uint8_t sensorData[24]   = {100, 1, 105, 1, 105, 1, 105, 1, 105, 1, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118};
 
 //to get from numpad file
 volatile char parser_buffer_keys_copy[10] = {'1', '5', '7', '9'};
 volatile int key_size = 4;
-volatile uint8_t ActivateVoiceRpiFlag = 0;
-volatile uint8_t enter_pressed = 1;
+volatile uint8_t ActivateVoiceRpiFlag = 1;
+volatile uint8_t enter_pressed = 0;
 volatile uint8_t enter = 0;
 
 void USART_init(void)
@@ -252,6 +268,7 @@ void loop()
             
             if(ActivateVoiceRpiFlag == 1){
               USART_send(VOICE);
+              ActivateVoiceRpiFlag = 0;
             }
             else if (enter_pressed == 1){
               USART_send(NUM);
@@ -315,11 +332,17 @@ void loop()
                 case ACK_S15 : sendSensorValue(16); break;
                 case ACK_S16 : sendSensorValue(17); break;
                 case ACK_S17 : sendSensorValue(18); break;
-                case ACK_S18 : sendCheckSum();     break;
+                case ACK_S18 : sendSensorValue(19); break;
+                case ACK_S19 : sendSensorValue(20); break;
+                case ACK_S20 : sendSensorValue(21); break;
+                case ACK_S21 : sendSensorValue(22); break;
+                case ACK_S22 : sendSensorValue(23); break;
+                case ACK_S23 : sendCheckSum();     break;
                 
                 case ACK_CHECKSUM : break;
                 
-                }
+                case NACK_CHECKSUM: break;
+                
             }
         }
   }
