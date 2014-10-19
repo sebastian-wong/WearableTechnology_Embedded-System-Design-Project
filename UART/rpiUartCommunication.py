@@ -20,20 +20,20 @@ ACK_NUM_CHECKSUM = 42;
 NACK_NUM_CHECKSUM = 43;
 VOICE = 44;
 ACK_VOICE = 45;
-receivedSensorData = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+receivedSensorData = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 numpadData = []
-ACK_S = [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28, 29, 30, 31, 32, 33]
+ACK_S = [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28, 29, 30, 31, 32, 33, 34]
 ACK_S_SUCCESS = 100
 ACK_S_FAILURE = 101
 
-sensor_data_size = 24
+sensor_data_size = 25
 #Steps for this second up to 5 steps: 1 byte
 #Compass bearings for those steps: 10 bytes #2 bytes = 1 compass reading
 #Gyro readings: 3 bytes
 #Barometer reading: 1 byte
 #Ultrasound readings: 5 bytes
-#IR readings: 4 bytes #2 bytes = 1 IR reading
-#Total right now: 24 bytes
+#IR readings: 5 bytes
+#Total right now: 25 bytes
 
 #send data to arduino, with expected readings
 #timeout if reading not equal to expected reading
@@ -177,7 +177,7 @@ def get_sensor_data():
 						print("ACK_S_CHECKSUM sent")
 					else:
 						port.write(chr(NACK_S_CHECKSUM))
-						receivedSensorData = [-1]*24
+						receivedSensorData = [-1]*sensor_data_size
 						print(receivedSensorData)
 						print("NACK_S_CHECKSUM sent")
 					index = index + 1
