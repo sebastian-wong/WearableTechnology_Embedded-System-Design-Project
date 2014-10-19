@@ -80,10 +80,13 @@ class Map:
                 sample = re.split(r'\s*', nodeName)
                 if sample[0].lower() == 'node':
 			print "searching by node number"
+			print "nodeName", nodeName
+			
                         searchByName = False
                         for i in range(len(sample)-1):
-                                if type(sample[i+1]) is int:
+                                if sample[i+1].isdigit():
                                         searchNodeId.append(sample[i+1])
+                                        print "appending", sample[i+1]
 			print "searchNodeId is ", searchNodeId
                 if searchByName:
                         for i in mapinfo['map']:
@@ -91,10 +94,10 @@ class Map:
                                         print "found"
                                         return i['nodeId']
                 else:
-                        searchNodeId = int(''.join(map(int,array)))
-                        print "searchNodeId is ", searchNodeId
+                        nodeId = int(''.join(map(str,searchNodeId)))
+                        print "searchNodeId is ", nodeId
 			for i in mapinfo['map']:
-                                if int(i['nodeId']) == searchNodeId:
+                                if int(i['nodeId']) == nodeId:
                                 	print "found"
                                 	return i['nodeId']
                 raise Exception("invalid location!")
@@ -350,7 +353,7 @@ def text2int(textnum, numwords={}):
             result += current
             current = 0
 
-    return result + current
+    return int(result + current)
 
 
 def stringParser(userInput):

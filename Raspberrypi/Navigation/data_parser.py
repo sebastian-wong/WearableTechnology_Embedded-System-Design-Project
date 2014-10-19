@@ -1,4 +1,4 @@
-#import rpiUartCommunication_working
+import rpiUartCommunication
 from multiprocessing import Process, Queue
 import numpy as np
 
@@ -12,8 +12,15 @@ class DataParser(object):
         ultrasound = Queue()
         IR = Queue()
 
+        def location_input_type(input_type):
+                voiceInput = False
+                if input_type == 1:
+                        voiceInput = True
+                return voiceInput             
+                        
+
         def request_readings(self, step, compass, gyro, baro, ultrasound, IR):
-                #data = rpiUartCommunication_working.receivedSensorData
+                data = rpiUartCommunication.get_sensor_data()
 
                 #Steps for this second up to 5 steps: 1 byte
                 #Compass bearings for those steps: 5 bytes
@@ -24,7 +31,7 @@ class DataParser(object):
                 #Total right now: 18 bytes
                 #ACK_A=[30,31,32,33,34,35,36,37]
                 #Every two bytes: motor and their respective duration - left,right, forward,backward
-                data = [1, 30,0,0,0,0, 0,0,0, 0, 0,0,0,0,0,0, 0,0]
+                #data = [1, 30,0,0,0,0, 0,0,0, 0, 0,0,0,0,0,0, 0,0]
                 step.put(data[0])
 
                 compass_no = 5
