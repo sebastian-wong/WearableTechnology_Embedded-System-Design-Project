@@ -7,6 +7,7 @@
 elapsedMillis timeElapsed;
 int debounceFlag = 0;
 int ActivateVoiceRpiFlag = 0;
+int EnterFlag = 0;
 
 int counter = 0; //used in loops in various cases 
 
@@ -60,94 +61,75 @@ Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 void setup(){
   Serial.begin(9600);
   int a;
-    for( a = 0; a<array_size; a++)
-         buffer_keys[a] = '?';
+  for( a = 0; a<array_size; a++)
+    buffer_keys[a] = '?';
 }
 
 void loop(){
-     ActivateVoiceRpiFlag = 0; //This represents the entirety of the function that sends data to the Rpi and resets the flag
- 
-    if(debounceFlag == 0){
-      key = keypad.getKey();
-      debounceFlag = 1;
-      keypad.setDebounceTime(10);    
-    }
-    if(debounceFlag == 1) {
-      debounceFlag = 0; //bounce finish
-      if (key != NO_KEY)
-  
-        if (key == '*'){
-          buffer_keys[buffer_keys_count-1]= '?';
-          buffer_keys_count--;
-       
-        }
-        
-        if (key == '#'){
-          for(counter = 0; counter < array_size; counter++)
-            parser_buffer_keys[counter] = buffer_keys[counter];
-               
-          for(counter = 0; counter <array_size; counter++)
-            Serial.println(parser_buffer_keys[counter]); 
-       
-       
-          for (counter= 0; counter< array_size; counter++)
-            buffer_keys[counter] = '?';
-            
-         buffer_keys_count = 0;
-
-        }
-              
-        if( key != NO_KEY && key!= '*' && key!= '#'){   
-       
-         if (key == '5'){
-          timeElapsed = 0;
-          while (timeElapsed < interval_key5 ){
-            key_state = keypad.getKeyState();
-//            Serial.println("key_state: ");
-//            Serial.println(key_state);
-//         
-//            Serial.println("prev_key_state: ");
-//            Serial.println(prev_key_state);
-           
+  ActivateVoiceRpiFlag = 0; //This represents the entirety of the function that sends data to the Rpi and resets the flag
+  EnterFlag = 0;
+  if(debounceFlag == 0){
+    key = keypad.getKey();
+    debounceFlag = 1;
+    keypad.setDebounceTime(10);    
+  }
+  if(debounceFlag == 1) {
+    debounceFlag = 0; //bounce finish
+    if (key != NO_KEY){  
+      if (key == '*'){
+        Serial.println("case *");
+        buffer_keys[buffer_keys_count-1]= '?';
+        buffer_keys_count--;
+      } 
+      if (key == '#'){
+        Serial.println("case #");
+        for(counter = 0; counter < array_size; counter++)
+          parser_buffer_keys[counter] = buffer_keys[counter];     
+        for(counter = 0; counter <array_size; counter++)
+          Serial.println(parser_buffer_keys[counter]); 
+        for (counter= 0; counter< array_size; counter++)
+          buffer_keys[counter] = '?';  
+        buffer_keys_count = 0;
+        EnterFlag = 1;
+        Serial.print("EnterFlag: ");
+        Serial.println(EnterFlag);
+      }
+    }         
+    if( key != NO_KEY && key!= '*' && key!= '#'){   
+      if (key == '5'){
+        timeElapsed = 0;
+        while (timeElapsed < interval_key5 ){
+          key_state = keypad.getKeyState();
           if((key_state == 3 && prev_key_state == 1)){ 
             activate_voice = 0; 
-//            Serial.println("Stuff 1 happening!\n");
             break;
           } 
           prev_key_state = key_state;
-         }
-         
-         if (key_state == 1 && prev_key_state == 1){
-             activate_voice = 1;
-             ActivateVoiceRpiFlag = 1; //The sending function will set this flag to 0 when it is sent
-           }   
-
-         
-         if (activate_voice == 0){
-            buffer_keys[buffer_keys_count] = key;
-            buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
-//            Serial.println("Key 5 put into buffer!\n");
-         }
-         
-           
-         
-         Serial.print("activate_voice : "); //set some other flag to send data to RPi
-         Serial.println(activate_voice);
-         activate_voice = 0;
-         prev_key_state = key_state;
-         key = '?';       
-        
         }
-          
-         else{   
-            Serial.println(key);
-            buffer_keys[buffer_keys_count] = key;
-            buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
-            
-          
-         }
-        }  
-    }
+         
+        if (key_state == 1 && prev_key_state == 1){
+          activate_voice = 1;
+          ActivateVoiceRpiFlag = 1; //The sending function will set this flag to 0 when it is sent
+        }    
+        if (activate_voice == 0){
+          buffer_keys[buffer_keys_count] = key;
+          buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
+        }
+
+        Serial.print("activate_voice : "); //set some other flag to send data to RPi
+        Serial.println(activate_voice);
+        activate_voice = 0;
+        prev_key_state = key_state;
+        key = '?';       
+        
+      }    
+      else{   
+        Serial.println(key);
+        buffer_keys[buffer_keys_count] = key;
+        buffer_keys_count = (buffer_keys_count + 1)%(array_size);      
+      }
+     }  
+   }
 
 
 }
