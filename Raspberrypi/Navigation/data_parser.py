@@ -23,20 +23,20 @@ class DataParser(object):
                 data = rpiUartCommunication.get_sensor_data()
 
                 #Steps for this second up to 5 steps: 1 byte
-                #Compass bearings for those steps: 5 bytes
+                #Compass bearings for those steps: 10 bytes
                 #Gyro readings: 3 bytes
                 #Barometer reading: 1 byte
-                #Ultrasound readings: 6 bytes
-                #IR readings: 2 bytes
-                #Total right now: 18 bytes
+                #Ultrasound readings: 5 bytes
+                #IR readings: 5 bytes
+                #Total right now: 25 bytes
                 #ACK_A=[30,31,32,33,34,35,36,37]
                 #Every two bytes: motor and their respective duration - left,right, forward,backward
                 #data = [1, 30,0,0,0,0, 0,0,0, 0, 0,0,0,0,0,0, 0,0]
                 step.put(data[0])
 
-                compass_no = 5
+                compass_no = 10
                 #compass_read = []
-                compass_read = np.zeros((5,), dtype=np.uint8)
+                compass_read = np.zeros((10,), dtype=np.uint8)
                 for i in range(compass_no):
                         compass_read[i] = data[i+1]
                 compass.put(compass_read)
@@ -51,14 +51,14 @@ class DataParser(object):
                 baro_read = data[compass_no+gyro_no+1]
                 baro.put(baro_read)
 
-                ultrasound_no = 6
+                ultrasound_no = 5
                 ultrasound_read = []
                 for u in range(ultrasound_no):
                         ultrasound_read.append(data[u+compass_no+gyro_no+baro_no+1])
                 ultrasound.put(ultrasound_read)
 
 
-                IR_no = 2
+                IR_no = 5
                 IR_read = []
                 for i in range(IR_no):
                         IR_read.append(data[i+compass_no+gyro_no+baro_no+ultrasound_no+1])
