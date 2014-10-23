@@ -1,15 +1,15 @@
 /*
 ||
 || @file Keypad.h
-|| @version 3.1
+|| @version 2.0
 || @author Mark Stanley, Alexander Brevig
 || @contact mstanley@technologist.com, alexanderbrevig@gmail.com
 ||
 || @description
 || | This library provides a simple interface for using matrix
-|| | keypads. It supports multiple keypresses while maintaining
-|| | backwards compatibility with the old single key library.
-|| | It also supports user selectable pins and definable keymaps.
+|| | keypads. It supports the use of multiple keypads with the
+|| | same or different sets of keys.  It also supports user
+|| | selectable pins and definable keymaps.
 || #
 ||
 || @license
@@ -33,105 +33,86 @@
 #ifndef KEYPAD_H
 #define KEYPAD_H
 
-#include "utility/Key.h"
-
 // Arduino versioning.
 #if defined(ARDUINO) && ARDUINO >= 100
-#include "Arduino.h"
+#include "Arduino.h"	// for digitalRead, digitalWrite, etc
 #else
 #include "WProgram.h"
 #endif
 
-// bperrybap - Thanks for a well reasoned argument and the following macro(s).
-// See http://arduino.cc/forum/index.php/topic,142041.msg1069480.html#msg1069480
-#ifndef INPUT_PULLUP
-#warning "Using  pinMode() INPUT_PULLUP AVR emulation"
-#define INPUT_PULLUP 0x2
-#define pinMode(_pin, _mode) _mypinMode(_pin, _mode)
-#define _mypinMode(_pin, _mode)  \
-do {							 \
-	if(_mode == INPUT_PULLUP)	 \
-		pinMode(_pin, INPUT);	 \
-		digitalWrite(_pin, 1);	 \
-	if(_mode != INPUT_PULLUP)	 \
-		pinMode(_pin, _mode);	 \
-}while(0)
-#endif
+#define OFF LOW
+#define ON HIGH
 
+#define CLOSED LOW
+#define OPEN HIGH
 
-#define OPEN LOW
-#define CLOSED HIGH
+#define makeKeymap(x) ((char*)x)
 
 typedef char KeypadEvent;
-typedef unsigned int uint;
-typedef unsigned long ulong;
+
+typedef enum {IDLE, PRESSED, HOLD, RELEASED} KeyState;  // KeyState was KeypadState
 
 // Made changes according to this post http://arduino.cc/forum/index.php?topic=58337.0
-// by Nick Gammon. Thanks for the input Nick. It actually saved 78 bytes for me. :)
+// by Nick Gammon. Thanks for the input Nick. :)  It actually saved 78 bytes for me.
 typedef struct {
     byte rows;
     byte columns;
 } KeypadSize;
 
-#define LIST_MAX 10		// Max number of keys on the active list.
-#define MAPSIZE 10		// MAPSIZE is the number of rows (times 16 columns)
-#define makeKeymap(x) ((char*)x)
+const char NO_KEY = '\0';
+#define KEY_RELEASED NO_KEY
 
-
-//class Keypad : public Key, public HAL_obj {
-class Keypad : public Key {
+class Keypad {
 public:
-
 	Keypad(char *userKeymap, byte *row, byte *col, byte numRows, byte numCols);
 
-	virtual void pin_mode(byte pinNum, byte mode) { pinMode(pinNum, mode); }
-	virtual void pin_write(byte pinNum, boolean level) { digitalWrite(pinNum, level); }
-	virtual int  pin_read(byte pinNum) { return digitalRead(pinNum); }
-
-	uint bitMap[MAPSIZE];	// 10 row x 16 column array of bits. Except Due which has 32 columns.
-	Key key[LIST_MAX];
-	unsigned long holdTimer;
-
-	char getKey();
-	bool getKeys();
-	KeyState getState();
 	void begin(char *userKeymap);
-	bool isPressed(char keyChar);
-	void setDebounceTime(uint);
-	void setHoldTime(uint);
+	char getKey();
+	KeyState getState();
+	void setDebounceTime(unsigned int);
+	void setHoldTime(unsigned int);
 	void addEventListener(void (*listener)(char));
-	int findInList(char keyChar);
-	int findInList(int keyCode);
+	// New methods
 	char waitForKey();
-	bool keyStateChanged();
-	byte numKeys();
+	boolean keyStateChanged();
+	
+	//added by Daniel Kern
+	char* getBuffer();
+	char* growBuffer(char key);
+	void clearBuffer();
+
+	KeyState getKeyState();
 
 private:
-	unsigned long startTime;
+	void transitionTo(KeyState);
+	void initializePins();
+
 	char *keymap;
     byte *rowPins;
     byte *columnPins;
-	KeypadSize sizeKpd;
-	uint debounceTime;
-	uint holdTime;
-	bool single_key;
-
-	void scanKeys();
-	bool updateList();
-	void nextKeyState(byte n, boolean button);
-	void transitionTo(byte n, KeyState nextState);
+	KeypadSize size;
+	KeyState state;
+	char currentKey;
+	unsigned int debounceTime;
+	unsigned int holdTime;
 	void (*keypadEventListener)(char);
+
+	// New methods - 2011-12-23
+	boolean scanKeys();
+	//KeyState getKeyState();
+
+	// New members - 2011-12-23
+	boolean buttons;
+	boolean stateChanged;
+	
+	//added by Daniel Kern
+	char keyBuffer[5];
 };
 
 #endif
 
 /*
 || @changelog
-|| | 3.1 2013-01-15 - Mark Stanley     : Fixed missing RELEASED & IDLE status when using a single key.
-|| | 3.0 2012-07-12 - Mark Stanley     : Made library multi-keypress by default. (Backwards compatible)
-|| | 3.0 2012-07-12 - Mark Stanley     : Modified pin functions to support Keypad_I2C
-|| | 3.0 2012-07-12 - Stanley & Young  : Removed static variables. Fix for multiple keypad objects.
-|| | 3.0 2012-07-12 - Mark Stanley     : Fixed bug that caused shorted pins when pressing multiple keys.
 || | 2.0 2011-12-29 - Mark Stanley     : Added waitForKey().
 || | 2.0 2011-12-23 - Mark Stanley     : Added the public function keyStateChanged().
 || | 2.0 2011-12-23 - Mark Stanley     : Added the private function scanKeys().
