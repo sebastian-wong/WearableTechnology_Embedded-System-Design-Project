@@ -74,20 +74,21 @@ def establish_connection():
 #if user requested keypad input, return 2
 def location_input():
 	loc = 0
-	while loc != 1:
-		request = port.read(1)
-		if request:
-        		if ord(request) == VOICE:
-	                        port.write(chr(ACK_VOICE))
-                	        print("voice activated")
-	 	    	        loc = 1
-				return 1
-	                elif ord(request) == NUM:
-        	                print("reading numpad")
-				loc = 1
-				return 2
-		else:
-			print("no input")
+#	while loc != 1:
+	request = port.read(1)
+	if request:
+       		if ord(request) == VOICE:
+                        port.write(chr(ACK_VOICE))
+               	        print("voice activated")
+ 	    	        loc = 1
+			return 1
+                elif ord(request) == NUM:
+       	                print("reading numpad")
+			loc = 1
+			return 2
+	else:
+		print("no input")
+		return 0
 
 #to calculate checksum from the received list of keypad inputs
 def verifyNumChecksum(length):
@@ -158,6 +159,7 @@ def get_sensor_data():
 	if timeout == 1:
 		connectionStatus = 0
 		timeout = 0
+		print("time out")
 
 	else:
 		print("ACK_READ received")
@@ -166,22 +168,28 @@ def get_sensor_data():
 		start = time.time()
 		end = start
 	        while index < sensor_data_size+1 and end-start < 1:
+	#	while index < sensor_data_size+1:
 			sensorValue = port.read(1)
 			if sensorValue:
+		#		print("Sensor value received: " + sensorValue)
 				if index == sensor_data_size:
 				#	port.write(chr(ACK_S_CHECKSUM))
 					checksum = ord(sensorValue)
+					print (checksum)
 					if sensor_checksum() == checksum:
 						port.write(chr(ACK_S_CHECKSUM))
 						print(receivedSensorData)
 						print("ACK_S_CHECKSUM sent")
 					else:
 						port.write(chr(NACK_S_CHECKSUM))
+						print("original: ")
+						print(receivedSensorData)
 						receivedSensorData = [-1]*sensor_data_size
 						print(receivedSensorData)
 						print("NACK_S_CHECKSUM sent")
 					index = index + 1
 				else:
+				#	print(ord(sensorValue))
 					receivedSensorData[index]=ord(sensorValue)
 					port.write(chr(ACK_S[index]))
 					index = index + 1
@@ -210,5 +218,17 @@ def sensor_checksum():
 
 #test code
 #handshake
+#location = 0
 while connectionStatus != 1:
 	establish_connection()
+#	while location == 0:
+#		location = location_input()
+#		if location == 1:
+#			print("voice activated(outside)")
+#		elif location == 2:
+#			print("numpad input")
+#			data = list(get_numpad_input())
+#			print(data)
+#	read_sensor = list(get_sensor_data())
+#	print (read_sensor)
+#	time.sleep(1)

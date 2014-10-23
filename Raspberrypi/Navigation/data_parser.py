@@ -1,7 +1,7 @@
 import rpiUartCommunication
 from multiprocessing import Process, Queue
 import numpy as np
-
+import time
 
 
 class DataParser(object):
@@ -34,14 +34,14 @@ class DataParser(object):
                 #data = [1, 30,0,0,0,0, 0,0,0, 0, 0,0,0,0,0,0, 0,0]
                 step.put(data[0])
 
-                compass_no = 10
+                compass_no = 12
                 #compass_read = []
-                compass_read = np.zeros((10,), dtype=np.uint8)
+                compass_read = np.zeros((12,), dtype=np.uint8)
                 for i in range(compass_no):
                         compass_read[i] = data[i+1]
                 compass.put(compass_read)
                 
-                gyro_no = 3
+                gyro_no = 1
                 gyro_read = []
                 for g in range(gyro_no):
                        gyro_read.append(data[g+compass_no+1])
@@ -93,8 +93,15 @@ class DataParser(object):
                 return self.ultrasound.get()
 
 if __name__ == '__main__':
-        data_parser = DataParser()
-        step = data_parser.get_step_read()
-        compass = data_parser.get_compass_read()
-        print step
-        print compass
+        #data_parser = DataParser()
+	start_time = time.time()
+        while True:
+		if (time.time() - start_time > 1):
+			data_parser = DataParser()
+			start_time = time.time()
+			step = data_parser.get_step_read()
+        		compass = data_parser.get_compass_read()
+       			print 'step', step
+        		print 'compass', compass
+			heading = compass[10] * 2**8 + compass[11]
+			print 'heading', heading
