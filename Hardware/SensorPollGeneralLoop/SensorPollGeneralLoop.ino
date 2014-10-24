@@ -5,6 +5,10 @@
 #define DELAY_TIME_HIGH_INTENSITY 750 
 #define DELAY_TIME_MEDIUM_INTENSITY 500 
 #define DELAY_TIME_LOW_INTENSITY 250 
+#define sensorPin0 A0
+#define sensorPin1 A1
+#define sensorPin2 A2
+#define sensorPin3 A3
 
 int motor_head_ultrasound[] = {8};
 
@@ -22,36 +26,55 @@ long duration;
 
 //for ultrasound
 //int ultrasoundTrigPin[5]={10,12,14,16,18}; //Put pins to be triggered here
-int ultrasoundTrigPin[1] = {1};
+
+//int ultrasoundTrigPin[1] = {2};
+int ultrasoundTrigPin = 2;
 //int ultrasoundEchoPin[5]={11,13,15,17,19}; //Put pins to receive trigger here
-int ultrasoundEchoPin[1] = {2}; //Put pins to receive trigger here
+//int ultrasoundEchoPin[1] = {3}; //Put pins to receive trigger here
+int ultrasoundEchoPin = 3;
 
 //for short range IR
 //int shortRangeInfraredPin[3]={5,6,7};
 
 //for long range IR
 //int longRangeInfraredPin=8;
-int longRangeInfraredPin[4] = {3,4,5,6};
+//int longRangeInfraredPin[4] = {4,5,6,7};
 
 
 void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
 {
   int ultrasoundPinIndex = 0; //Scoped variable which resets to 0 at every beginning
-  int trigPin = 0;
-  int echoPin = 0;
+//  int trigPin = 0;
+//  int echoPin = 0;
   //while(ultrasoundPinIndex < 5)
-  trigPin = ultrasoundTrigPin[ultrasoundPinIndex];
-  echoPin = ultrasoundEchoPin[ultrasoundPinIndex];
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  digitalWrite(trigPin, LOW);
+ // trigPin = ultrasoundTrigPin[ultrasoundPinIndex];
+ // echoPin = ultrasoundEchoPin[ultrasoundPinIndex];
+//  pinMode(trigPin, OUTPUT);
+//  pinMode(echoPin, INPUT);
+  
+  pinMode(ultrasoundTrigPin, OUTPUT); 
+  pinMode(ultrasoundEchoPin, INPUT);
+  
+  
+//  analogWrite(trigPin, LOW);
+  digitalWrite(ultrasoundTrigPin, LOW);
   delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
+  
+  //analogWrite(trigPin, HIGH);
+  digitalWrite(ultrasoundTrigPin, HIGH);
   delayMicroseconds(5);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin,HIGH);
+  
+//  analogWrite(trigPin, LOW);
+//  duration = pulseIn(echoPin,HIGH);
+  digitalWrite(ultrasoundTrigPin, LOW);
+  duration = pulseIn(ultrasoundEchoPin,HIGH);
+  
   duration = duration / 29 / 2;
   head_ultrasound = duration;
+//  Serial.print("head_ultrasound: ");
+//  Serial.print(duration);
+//  Serial.print("\n");
+  ultrasoundPinIndex++;
 //     switch(ultrasoundPinIndex)
 //    {
 //      case 0:
@@ -133,30 +156,68 @@ void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
 
 void longRangeInfraredSensorPoll()
 {
- int infraredPinIndex = 0;
+  pinMode(sensorPin0, INPUT); 
+   pinMode(sensorPin1, INPUT);
+    pinMode(sensorPin2, INPUT);
+     pinMode(sensorPin3, INPUT);
+  int infraredPinIndex = 0;
  float v = 0;
- unsigned long currentTotalReading = 0; //This thing is not just currentTotalReading, it's also used to hold the average and the return value.
-  while(infraredPinIndex<4)
-  {
-    for(int i=0;i<10;i++) //Poll ten times
-    {  
-    currentTotalReading+=analogRead(longRangeInfraredPin[infraredPinIndex]);
+ float currentTotalReading = 0; //This thing is not just currentTotalReading, it's also used to hold the average and the return value.
+  while (infraredPinIndex < 4)
+  {  
+    currentTotalReading = 0;
+//    for(int i=0;i<10;i++) //Poll ten times
+//    {  
+    //currentTotalReading+=digitalRead(longRangeInfraredPin[infraredPinIndex]);
+    if (infraredPinIndex == 0){
+    currentTotalReading=analogRead(sensorPin0);
     }
-    currentTotalReading/=(float)10;
+    
+    if (infraredPinIndex == 1){
+    currentTotalReading=analogRead(sensorPin1);
+    }
+    
+    if (infraredPinIndex == 2){
+    currentTotalReading=analogRead(sensorPin2);
+    }
+    
+    if (infraredPinIndex == 3){
+    currentTotalReading=analogRead(sensorPin3);
+    }
+    
+//    }
+//    currentTotalReading/=(float)10;
+//    v=(float)currentTotalReading*5.0/1024.0;
     v=(float)currentTotalReading*5.0/1024.0;
-    currentTotalReading = -270.79*v*v*v*v*v + 3289.7*v*v*v*v - 15920*v*v*v + 38434*v*v - 46483*v + 22797;
+    //currentTotalReading = -270.79*v*v*v*v*v + 3289.7*v*v*v*v - 15920*v*v*v + 38434*v*v - 46483*v + 22797;
+   currentTotalReading = -270.79*pow(v, 5) + 3289.7*pow(v, 4) - 15920*pow(v, 3) + 38434*pow(v, 2) - 46483*v + 22797;
     switch(infraredPinIndex)
     {
       case 0:
         head_IR = currentTotalReading;
+        break;
       case 1:
         chestLeft = currentTotalReading;
+        break;
       case 2:
         chestRight = currentTotalReading;
+        break;
       case 3:
         waistCentre_IR = currentTotalReading;
+        break;
     }
+    
+//  if (infraredPinIndex == 0){
+   // Serial.print("head_IR: ");
+  Serial.println(currentTotalReading);
+    Serial.print("infraredPinIndex: ");
+  Serial.print(infraredPinIndex);
+  Serial.print("\n");
+//  } 
+    
+    
    //Poll infrared sensor using the values of infraredPins[infraredPinIndex]
+   currentTotalReading = 0;
    infraredPinIndex++; 
   }
   if(infraredPinIndex=4)
@@ -254,7 +315,8 @@ void ultrasound_motordriver(){
 //  digitalWrite(motor_chestRight[0], LOW);
 // } 
  
- if(head_ultrasound < 200){
+ //if(head_ultrasound < 200){
+ if(head_ultrasound < 100){
 //  digitalWrite(motor_shoulderLeft[0], LOW);
 //  digitalWrite(motor_shoulderRight[0], LOW); 
   digitalWrite(motor_chestLeft[0], LOW);
