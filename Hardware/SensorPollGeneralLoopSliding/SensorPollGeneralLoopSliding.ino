@@ -1,18 +1,18 @@
 #include <avr/io.h>
 
-#define MAX_INTERVAL 50 //Milliseconds
-#define MIN_INTERVAL 10 //Milliseconds
+#define MAX_INTERVAL 1000 //Milliseconds
+#define MIN_INTERVAL 100 //Milliseconds
 
 // use in vibrateMotors()
 //#define DELAY_TIME_VERYHIGH_INTENSITY 1000 
 //#define DELAY_TIME_HIGH_INTENSITY 750 
 //#define DELAY_TIME_MEDIUM_INTENSITY 500 
 //#define DELAY_TIME_LOW_INTENSITY 250 2
-#define sensorPin0 A0
-#define sensorPin1 A1
-#define sensorPin2 A2
-#define sensorPin3 A3
-
+#define sensorPin0 A0 //headIR
+#define sensorPin1 A1 //belt IR
+#define sensorPin2 A2 //left IR
+#define sensorPin3 A3 //right IR
+//Ultrasound pins are 2 and 3
 int head_ultrasound_State = LOW;   
 int head_IR_State = LOW; 
 int waist_centre_IR_State = LOW;
@@ -86,6 +86,10 @@ void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
   duration = pulseIn(ultrasoundEchoPin,HIGH);
   
   duration = duration / 29 / 2;
+  if(duration < 10)
+    duration = 10;
+  else if (duration > 200)
+    duration = 200;
   head_ultrasound = duration;
 //  Serial.print("head_ultrasound: ");
 //  Serial.print(duration);
@@ -142,8 +146,10 @@ void shortRangeInfraredSensorPoll()
     {
       case 0:
         chestLeft = currentTotalReading;
+        break;
       case 1:
         chestRight = currentTotalReading;
+        break;
     }
    //Poll infrared sensor using the values of infraredPins[infraredPinIndex]
    infraredPinIndex++; 
@@ -191,12 +197,14 @@ int return_motor_strength(int distance, int type)
   {
     cmrange = 220; //This may require an inverse of approxfreq - longer distances indicate obstacles or drops. Or I just use my brain
   }
-  unit = (MAX_INTERVAL - MIN_INTERVAL)/cmrange;
+  unit = (float)(MAX_INTERVAL - MIN_INTERVAL)/(float)cmrange;
   if((type == 1) || (type == 2)) {
-  approxfreq = MIN_INTERVAL + (distance*cmrange);
+  approxfreq = MIN_INTERVAL + (distance*unit);
   }
  else if (type == 3) {
-  approxfreq = MAX_INTERVAL - (distance*cmrange);
+  approxfreq = MAX_INTERVAL - (distance*unit);
+  Serial.println("Approx frequency: ");
+  Serial.println(approxfreq);
    }  
   return approxfreq;
 }
@@ -261,9 +269,8 @@ void longRangeInfraredSensorPoll()
 
 
 void ultrasound_motordriver(){
-
    int ultrasound_delay = return_motor_strength(head_ultrasound, 2);
-
+    //Serial.println(ultrasound_delay);
   //digitalWrite(motor_chestLeft[0], LOW);
   //digitalWrite(motor_chestRight[0], LOW);
   //digitalWrite(motor_head_IR[0], LOW);
@@ -319,8 +326,8 @@ void shortrangeIR_motordriver(){
 }
 
 void longrangeIR_motordriver(){
- int longrangeHeadIR_delay = return_motor_strength(head_IR, 2);
- int longrangewaistcentreIR_delay = return_motor_strength(waistCentre_IR, 2);
+ int longrangeHeadIR_delay = return_motor_strength(head_IR, 3);
+ int longrangewaistcentreIR_delay = return_motor_strength(waistCentre_IR, 3);
   unsigned long currentMillis = millis();
 
     if(currentMillis - previousHeadIRMillis > longrangeHeadIR_delay) {
@@ -333,9 +340,9 @@ void longrangeIR_motordriver(){
         
       digitalWrite( motor_head_IR[0], head_IR_State);  
     }
+    
  currentMillis = millis();
-  
-  if(currentMillis - previousChestRightMillis > longrangewaistcentreIR_delay) {
+  if(currentMillis - previousBeltMillis > longrangewaistcentreIR_delay) {
      previousBeltMillis = currentMillis;
       
       if (waist_centre_IR_State == LOW)
@@ -351,9 +358,9 @@ void longrangeIR_motordriver(){
 
 void vibrateMotors()
 {
-  ultrasound_motordriver();
+  //ultrasound_motordriver();
   shortrangeIR_motordriver();
-  longrangeIR_motordriver();
+  //longrangeIR_motordriver();
 
 }
   
@@ -364,8 +371,8 @@ void setup()
   Serial.begin(9600);
 
 //setup ultrasound 
-  pinMode(ultrasoundTrigPin, OUTPUT); 
-  pinMode(ultrasoundEchoPin, INPUT);
+  //pinMode(ultrasoundTrigPin, OUTPUT); 
+  //pinMode(ultrasoundEchoPin, INPUT);
 
 //setup long range IR
   pinMode(sensorPin0, INPUT); 
@@ -387,8 +394,9 @@ void setup()
 
 void loop() //Main time loop runs here
 {
-  ultrasoundSensorPoll();
+  //Serial.println("Slow debug");
+  //ultrasoundSensorPoll();
   shortRangeInfraredSensorPoll();
-  longRangeInfraredSensorPoll();
+  //longRangeInfraredSensorPoll();
   vibrateMotors();
 }

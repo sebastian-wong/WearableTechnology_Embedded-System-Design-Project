@@ -1,6 +1,6 @@
 //Vcc 5v
 
-#define voltoutPin A2
+#define voltoutPin A3
   
 int numSamples = 0;
 float currentir = 0;
