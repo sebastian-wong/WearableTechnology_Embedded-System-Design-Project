@@ -6,7 +6,7 @@
 #define BAUD_PRESCALER (((F_CPU / (BAUDRATE * 16UL))) - 1)
 
 uint8_t input = 0; //for incoming serial data
-uint8_t sensor_Len = 24;
+uint8_t sensor_Len = 25;
 uint8_t divisor = 17;
 
 //for UART1
@@ -64,7 +64,7 @@ static uint8_t const ACK_S20 = 30;
 static uint8_t const ACK_S21 = 31;
 static uint8_t const ACK_S22 = 32;
 static uint8_t const ACK_S23 = 33;
-
+static uint8_t const ACK_S24 = 34;
 /*
 #Steps for this second up to 5 steps: 1 byte
 #Compass bearings for those steps: 10 bytes #2 bytes = 1 compass reading
@@ -76,7 +76,7 @@ static uint8_t const ACK_S23 = 33;
 */
 
 //Buffer storing all sensor values - Index of buffer represents id of sensor 
-uint8_t sensorData[24]   = {100, 1, 105, 1, 105, 1, 105, 1, 105, 1, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118};
+uint8_t sensorData[25]   = {100, 1, 105, 1, 105, 1, 105, 1, 105, 1, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118,119};
 
 //to get from numpad file
 volatile char parser_buffer_keys_copy[10] = {'1', '5', '7', '9'};
@@ -337,7 +337,8 @@ void loop()
                 case ACK_S20 : sendSensorValue(21); break;
                 case ACK_S21 : sendSensorValue(22); break;
                 case ACK_S22 : sendSensorValue(23); break;
-                case ACK_S23 : sendCheckSum();     break;
+                case ACK_S23 : sendSensorValue(24); break;
+                case ACK_S24 : sendCheckSum();     break;
                 
                 case ACK_CHECKSUM : break;
                 
