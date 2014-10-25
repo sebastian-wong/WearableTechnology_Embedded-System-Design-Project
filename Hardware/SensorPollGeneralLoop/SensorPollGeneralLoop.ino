@@ -1,15 +1,28 @@
 #include <avr/io.h>
 
 // use in vibrateMotors()
-#define DELAY_TIME_VERYHIGH_INTENSITY 1000 
-#define DELAY_TIME_HIGH_INTENSITY 750 
-#define DELAY_TIME_MEDIUM_INTENSITY 500 
-#define DELAY_TIME_LOW_INTENSITY 250 
+//#define DELAY_TIME_VERYHIGH_INTENSITY 1000 
+//#define DELAY_TIME_HIGH_INTENSITY 750 
+//#define DELAY_TIME_MEDIUM_INTENSITY 500 
+//#define DELAY_TIME_LOW_INTENSITY 250 2
 #define sensorPin0 A0
 #define sensorPin1 A1
 #define sensorPin2 A2
 #define sensorPin3 A3
 
+int head_ultrasound_State = LOW;   
+int head_IR_State = LOW; 
+int waist_centre_IR_State = LOW;
+int chest_left_State = LOW;
+int chest_right_State = LOW;  
+ 
+unsigned long previousMillis = 0;
+unsigned long currentMillis = 0;
+long interval_very_high_intensity = 1000; 
+long interval_high_intensity = 750;
+long interval_medium_intensity = 500;
+long interval_low_intensity = 250;
+  
 int motor_head_ultrasound[] = {8};
 
 int motor_head_IR[] = {9};
@@ -52,8 +65,9 @@ void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
 //  pinMode(trigPin, OUTPUT);
 //  pinMode(echoPin, INPUT);
   
-  pinMode(ultrasoundTrigPin, OUTPUT); 
-  pinMode(ultrasoundEchoPin, INPUT);
+  //put into setup
+//  pinMode(ultrasoundTrigPin, OUTPUT); 
+//  pinMode(ultrasoundEchoPin, INPUT);
   
   
 //  analogWrite(trigPin, LOW);
@@ -97,7 +111,7 @@ void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
    // }
     
  // if(ultrasoundPinIndex = 5)
-  if(ultrasoundPinIndex = 1)
+  if(ultrasoundPinIndex == 1)
     {
       ultrasoundPinIndex = 0;
     }
@@ -156,13 +170,13 @@ void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
 
 void longRangeInfraredSensorPoll()
 {
-  pinMode(sensorPin0, INPUT); 
-   pinMode(sensorPin1, INPUT);
-    pinMode(sensorPin2, INPUT);
-     pinMode(sensorPin3, INPUT);
+//  pinMode(sensorPin0, INPUT); 
+//  pinMode(sensorPin1, INPUT);
+//  pinMode(sensorPin2, INPUT);
+//  pinMode(sensorPin3, INPUT);
   int infraredPinIndex = 0;
- float v = 0;
- float currentTotalReading = 0; //This thing is not just currentTotalReading, it's also used to hold the average and the return value.
+  float v = 0;
+  float currentTotalReading = 0; //This thing is not just currentTotalReading, it's also used to hold the average and the return value.
   while (infraredPinIndex < 4)
   {  
     currentTotalReading = 0;
@@ -220,7 +234,7 @@ void longRangeInfraredSensorPoll()
    currentTotalReading = 0;
    infraredPinIndex++; 
   }
-  if(infraredPinIndex=4)
+  if(infraredPinIndex==4)
   {
     //Reset pins
     infraredPinIndex = 0;
@@ -231,113 +245,71 @@ void longRangeInfraredSensorPoll()
 
 
 void ultrasound_motordriver(){
-// if(shoulderLeft < 200){
-//  digitalWrite(motor_shoulderLeft[0], HIGH);
-//  digitalWrite(motor_shoulderRight[0], LOW); 
-//  digitalWrite(motor_chestLeft[0], LOW);
-//  digitalWrite(motor_chestRight[0], LOW);
-//  digitalWrite(motor_head_IR[0], LOW);
-//  digitalWrite(motor_head_ultrasound[0], LOW);
-//  digitalWrite(motor_waistLeft[0],LOW);
-//  digitalWrite(motor_waistCentre[0],LOW);
-//  digitalWrite(motor_waistRight[0],LOW); 
-//    //low intensity
-//  if(shoulderLeft < 80)
-//    delay(DELAY_TIME_HIGH_INTENSITY);
-//  else if(shoulderLeft >= 80 && shoulderLeft <140)
-//    delay(DELAY_TIME_MEDIUM_INTENSITY);
-//  else 
-//    delay(DELAY_TIME_LOW_INTENSITY);
-// 
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-// }
-// 
-//  if(shoulderRight < 200){
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-//  digitalWrite(motor_shoulderRight[0], HIGH); 
-//  digitalWrite(motor_chestLeft[0], LOW);
-//  digitalWrite(motor_chestRight[0], LOW);
-//  digitalWrite(motor_head_IR[0], LOW);
-//  digitalWrite(motor_head_ultrasound[0], LOW);
-//  digitalWrite(motor_waistLeft[0],LOW);
-//  digitalWrite(motor_waistCentre[0],LOW);
-//  digitalWrite(motor_waistRight[0],LOW); 
-//    //low intensity
-//  if(shoulderRight < 80)
-//    delay(DELAY_TIME_HIGH_INTENSITY);
-//  else if(shoulderRight >= 80 && shoulderRight <140)
-//    delay(DELAY_TIME_MEDIUM_INTENSITY);
-//  else 
-//    delay(DELAY_TIME_LOW_INTENSITY);
-// 
-//  digitalWrite(motor_shoulderRight[0], LOW);
-// } 
-// 
-//  if(chestLeft < 200){
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-//  digitalWrite(motor_shoulderRight[0], LOW); 
-//  digitalWrite(motor_chestLeft[0], HIGH);
-//  digitalWrite(motor_chestRight[0], LOW);
-//  digitalWrite(motor_head_IR[0], LOW);
-//  digitalWrite(motor_head_ultrasound[0], LOW);
-//  digitalWrite(motor_waistLeft[0],LOW);
-//  digitalWrite(motor_waistCentre[0],LOW);
-//  digitalWrite(motor_waistRight[0],LOW); 
-//    //low intensity
-//  if(chestLeft < 80)
-//    delay(DELAY_TIME_HIGH_INTENSITY);
-//  else if(chestLeft >= 80 && chestLeft <140)
-//    delay(DELAY_TIME_MEDIUM_INTENSITY);
-//  else 
-//    delay(DELAY_TIME_LOW_INTENSITY);
-// 
-//  digitalWrite(motor_chestLeft[0], LOW);
-// } 
-// 
-// if(chestRight < 200){
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-//  digitalWrite(motor_shoulderRight[0], LOW); 
-//  digitalWrite(motor_chestLeft[0], LOW);
-//  digitalWrite(motor_chestRight[0], HIGH);
-//  digitalWrite(motor_head_IR[0], LOW);
-//  digitalWrite(motor_head_ultrasound[0], LOW);
-//  digitalWrite(motor_waistLeft[0],LOW);
-//  digitalWrite(motor_waistCentre[0],LOW);
-//  digitalWrite(motor_waistRight[0],LOW); 
-//    //low intensity
-//  if(chestRight < 80)
-//    delay(DELAY_TIME_HIGH_INTENSITY);
-//  else if(chestRight >= 80 && chestRight <140)
-//    delay(DELAY_TIME_MEDIUM_INTENSITY);
-//  else 
-//    delay(DELAY_TIME_LOW_INTENSITY);
-// 
-//  digitalWrite(motor_chestRight[0], LOW);
-// } 
- 
- //if(head_ultrasound < 200){
- if(head_ultrasound < 100){
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-//  digitalWrite(motor_shoulderRight[0], LOW); 
+
+   
+ if(head_ultrasound < 200){
+
   digitalWrite(motor_chestLeft[0], LOW);
   digitalWrite(motor_chestRight[0], LOW);
   digitalWrite(motor_head_IR[0], LOW);
-  digitalWrite(motor_head_ultrasound[0], HIGH);
-//  digitalWrite(motor_waistLeft[0],LOW);
+  //digitalWrite(motor_head_ultrasound[0], HIGH);
   digitalWrite(motor_waistCentre_IR[0],LOW);
-//  digitalWrite(motor_waistRight[0],LOW); 
-    //low intensity
-  if(head_ultrasound < 80)
-    delay(DELAY_TIME_HIGH_INTENSITY);
-  else if(head_ultrasound >= 80 && head_ultrasound <140)
-    delay(DELAY_TIME_MEDIUM_INTENSITY);
-  else 
-    delay(DELAY_TIME_LOW_INTENSITY);
- 
-  digitalWrite(motor_head_ultrasound[0], LOW);
- } 
-}
+  
+  unsigned long currentMillis = millis();
 
+  if(head_ultrasound < 80){
+   // delay(DELAY_TIME_HIGH_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_high_intensity) {
+      previousMillis = currentMillis;   
+
+      if (head_ultrasound_State == LOW)
+        head_ultrasound_State = HIGH;
+      else
+        head_ultrasound_State = LOW; 
+        
+      digitalWrite( motor_head_ultrasound[0], head_ultrasound_State);  
+    } 
+        
+  }
+  
+  else if(head_ultrasound >= 80 && head_ultrasound <140){
+    //delay(DELAY_TIME_MEDIUM_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_medium_intensity) {
+      previousMillis = currentMillis;   
+
+      if (head_ultrasound_State == LOW)
+        head_ultrasound_State = HIGH;
+      else
+        head_ultrasound_State = LOW; 
+      
+      digitalWrite( motor_head_ultrasound[0], head_ultrasound_State);  
+    } 
+    
+  }
+  else{ 
+    //delay(DELAY_TIME_LOW_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_low_intensity) {
+      previousMillis = currentMillis;   
+
+      if (head_ultrasound_State == LOW)
+        head_ultrasound_State = HIGH;
+      else
+        head_ultrasound_State = LOW; 
+        
+      digitalWrite( motor_head_ultrasound[0], head_ultrasound_State);
+    } 
+  
+  }
+ // digitalWrite(motor_head_ultrasound[0], LOW);
+ } 
+
+}
 
 //void shortrangeIR_motordriver(){  
 // if(head_IR < 140){
@@ -406,92 +378,239 @@ void ultrasound_motordriver(){
 //}
 
 void longrangeIR_motordriver(){
+  
  if(waistCentre_IR < 240){
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-//  digitalWrite(motor_shoulderRight[0], LOW); 
+
   digitalWrite(motor_chestLeft[0], LOW);
   digitalWrite(motor_chestRight[0], LOW);
   digitalWrite(motor_head_IR[0], LOW);
   digitalWrite(motor_head_ultrasound[0], LOW);
-//  digitalWrite(motor_waistLeft[0],LOW);
-  digitalWrite(motor_waistCentre_IR[0],HIGH);
-//  digitalWrite(motor_waistRight[0],LOW); 
-    //low intensity
-  if(waistCentre_IR < 80)
-    delay(DELAY_TIME_HIGH_INTENSITY);
-  else if(waistCentre_IR >= 80 && waistCentre_IR <160)
-    delay(DELAY_TIME_MEDIUM_INTENSITY);
-  else 
-    delay(DELAY_TIME_LOW_INTENSITY);
+  //digitalWrite(motor_waistCentre_IR[0],HIGH);
+    
+  unsigned long currentMillis = millis();
  
-  digitalWrite(motor_waistCentre_IR[0], LOW);
+  if(waistCentre_IR < 80){
+    //delay(DELAY_TIME_HIGH_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_high_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (waist_centre_IR_State == LOW)
+        waist_centre_IR_State = HIGH;
+      else
+        waist_centre_IR_State = LOW; 
+        
+      digitalWrite( motor_waistCentre_IR[0], waist_centre_IR_State);  
+    }   
+    
+  }
+  else if(waistCentre_IR >= 80 && waistCentre_IR <160){
+   // delay(DELAY_TIME_MEDIUM_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_medium_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (waist_centre_IR_State == LOW)
+        waist_centre_IR_State = HIGH;
+      else
+        waist_centre_IR_State = LOW; 
+        
+      digitalWrite( motor_waistCentre_IR[0], waist_centre_IR_State);  
+    }    
+   
+   
+  }
+  else{ 
+    //delay(DELAY_TIME_LOW_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_low_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (waist_centre_IR_State == LOW)
+        waist_centre_IR_State = HIGH;
+      else
+        waist_centre_IR_State = LOW; 
+        
+      digitalWrite( motor_waistCentre_IR[0], waist_centre_IR_State);  
+    }   
+  }
+  //digitalWrite(motor_waistCentre_IR[0], LOW);
  }
  
  
  if(head_IR < 240){
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-//  digitalWrite(motor_shoulderRight[0], LOW); 
   digitalWrite(motor_chestLeft[0], LOW);
   digitalWrite(motor_chestRight[0], LOW);
-  digitalWrite(motor_head_IR[0], HIGH);
+  //digitalWrite(motor_head_IR[0], HIGH);
   digitalWrite(motor_head_ultrasound[0], LOW);
-//  digitalWrite(motor_waistLeft[0],LOW);
   digitalWrite(motor_waistCentre_IR[0],LOW);
-//  digitalWrite(motor_waistRight[0],LOW); 
-    //low intensity
-  if(head_IR < 80)
-    delay(DELAY_TIME_HIGH_INTENSITY);
-  else if(head_IR >= 80 && head_IR <160)
-    delay(DELAY_TIME_MEDIUM_INTENSITY);
-  else 
-    delay(DELAY_TIME_LOW_INTENSITY);
- 
-  digitalWrite(motor_head_IR[0], LOW);
+
+  if(head_IR < 80){
+    //delay(DELAY_TIME_HIGH_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_high_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (head_IR_State == LOW)
+        head_IR_State = HIGH;
+      else
+        head_IR_State = LOW; 
+        
+      digitalWrite(motor_head_IR[0], head_IR_State);  
+    }   
+  }
+  else if(head_IR >= 80 && head_IR <160){
+    //delay(DELAY_TIME_MEDIUM_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_medium_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (head_IR_State == LOW)
+        head_IR_State = HIGH;
+      else
+        head_IR_State = LOW; 
+        
+      digitalWrite(motor_head_IR[0], head_IR_State);  
+    }   
+  }
+  else{
+   //delay(DELAY_TIME_LOW_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_low_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (head_IR_State == LOW)
+        head_IR_State = HIGH;
+      else
+        head_IR_State = LOW; 
+        
+      digitalWrite(motor_head_IR[0], head_IR_State);  
+    }   
+  }
+ // digitalWrite(motor_head_IR[0], LOW);
  }
  
  
  if(chestLeft < 240){
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-//  digitalWrite(motor_shoulderRight[0], LOW); 
-  digitalWrite(motor_chestLeft[0], HIGH);
+  //digitalWrite(motor_chestLeft[0], HIGH);
   digitalWrite(motor_chestRight[0], LOW);
   digitalWrite(motor_head_IR[0], LOW);
   digitalWrite(motor_head_ultrasound[0], LOW);
-//  digitalWrite(motor_waistLeft[0],LOW);
   digitalWrite(motor_waistCentre_IR[0],LOW);
-//  digitalWrite(motor_waistRight[0],LOW); 
+
     //low intensity
-  if(chestLeft < 80)
-    delay(DELAY_TIME_HIGH_INTENSITY);
-  else if(chestLeft >= 80 && chestLeft <160)
-    delay(DELAY_TIME_MEDIUM_INTENSITY);
-  else 
-    delay(DELAY_TIME_LOW_INTENSITY);
- 
-  digitalWrite(motor_chestLeft[0], LOW);
+  if(chestLeft < 80){
+    //delay(DELAY_TIME_HIGH_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_high_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (chest_left_State == LOW)
+        chest_left_State = HIGH;
+      else
+        chest_left_State = LOW; 
+        
+      digitalWrite(motor_chestLeft[0], chest_left_State);  
+    }   
+  
+  }
+  else if(chestLeft >= 80 && chestLeft <160){
+    //delay(DELAY_TIME_MEDIUM_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_medium_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (chest_left_State == LOW)
+        chest_left_State = HIGH;
+      else
+        chest_left_State = LOW; 
+        
+      digitalWrite(motor_chestLeft[0], chest_left_State);  
+    }     
+
+}
+  else{ 
+    //delay(DELAY_TIME_LOW_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_low_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (chest_left_State == LOW)
+        chest_left_State = HIGH;
+      else
+        chest_left_State = LOW; 
+        
+      digitalWrite(motor_chestLeft[0], chest_left_State);  
+    }   
+  }
+ // digitalWrite(motor_chestLeft[0], LOW);
  } 
  
  
 
  if(chestRight < 240){
-//  digitalWrite(motor_shoulderLeft[0], LOW);
-//  digitalWrite(motor_shoulderRight[0], LOW); 
   digitalWrite(motor_chestLeft[0], LOW);
-  digitalWrite(motor_chestRight[0], HIGH);
+ // digitalWrite(motor_chestRight[0], HIGH);
   digitalWrite(motor_head_IR[0], LOW);
   digitalWrite(motor_head_ultrasound[0], LOW);
-//  digitalWrite(motor_waistLeft[0],LOW);
   digitalWrite(motor_waistCentre_IR[0],LOW);
-//  digitalWrite(motor_waistRight[0],LOW); 
-    //low intensity
-  if(chestRight < 80)
-    delay(DELAY_TIME_HIGH_INTENSITY);
-  else if(chestRight >= 80 && chestRight <160)
-    delay(DELAY_TIME_MEDIUM_INTENSITY);
-  else 
-    delay(DELAY_TIME_LOW_INTENSITY);
- 
-  digitalWrite(motor_chestRight[0], LOW);
+
+
+  if(chestRight < 80){
+   // delay(DELAY_TIME_HIGH_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_high_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (chest_right_State == LOW)
+        chest_right_State = HIGH;
+      else
+        chest_right_State = LOW; 
+        
+      digitalWrite(motor_chestRight[0], chest_right_State);  
+    }  
+  }
+  else if(chestRight >= 80 && chestRight <160){
+   // delay(DELAY_TIME_MEDIUM_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_medium_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (chest_left_State == LOW)
+        chest_left_State = HIGH;
+      else
+        chest_left_State = LOW; 
+        
+      digitalWrite(motor_chestLeft[0], chest_left_State);  
+    }  
+  }
+  else {
+    //delay(DELAY_TIME_LOW_INTENSITY);
+    currentMillis = millis();
+    previousMillis = 0;
+    if(currentMillis - previousMillis > interval_low_intensity) {
+      previousMillis = currentMillis;   
+      
+      if (chest_left_State == LOW)
+        chest_left_State = HIGH;
+      else
+        chest_left_State = LOW; 
+        
+      digitalWrite(motor_chestLeft[0], chest_left_State);  
+    }  
+  }
+  //digitalWrite(motor_chestRight[0], LOW);
  } 
  
 }
@@ -510,7 +629,17 @@ void vibrateMotors()
 void setup()
 {
   //Do setup stuff here.
-   Serial.begin(9600);
+  Serial.begin(9600);
+
+//setup ultrasound 
+  pinMode(ultrasoundTrigPin, OUTPUT); 
+  pinMode(ultrasoundEchoPin, INPUT);
+
+//setup long range IR
+  pinMode(sensorPin0, INPUT); 
+  pinMode(sensorPin1, INPUT);
+  pinMode(sensorPin2, INPUT);
+  pinMode(sensorPin3, INPUT);
 
 // Setup motors
   int i;
