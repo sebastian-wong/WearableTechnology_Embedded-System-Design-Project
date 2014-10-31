@@ -22,6 +22,7 @@ VOICE = 44;
 ACK_VOICE = 45;
 receivedSensorData = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 numpadData = []
+numpadDatacopy = []
 ACK_S = [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28, 29, 30, 31, 32, 33, 34]
 ACK_S_SUCCESS = 100
 ACK_S_FAILURE = 101
@@ -105,10 +106,12 @@ def verifyNumChecksum(length):
 #to be called if user uses keypad for input
 def get_numpad_input():
 	global loc
+	global numpadData
 	input_num = 0
 	characterReceived = 0
 	num_received = 0
-	
+	numpadData = []
+
 	port.write(chr(ACK_NUM))
 	while not num_received :
 		input_num_temp = port.read(1)
@@ -141,7 +144,8 @@ def get_numpad_input():
 				port.write(chr(NACK_NUM_CHECKSUM))
 				print("NACK_NUM_CHECKSUM")
 				characterReceived = characterReceived + 1
-	return numpadData
+	numpadDatacopy = numpadData
+	return numpadDatacopy
 
 #to request sensor data from Arduino
 #return array of received sensor data
