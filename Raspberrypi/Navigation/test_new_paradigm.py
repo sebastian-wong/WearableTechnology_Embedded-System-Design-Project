@@ -69,7 +69,7 @@ print y1, y2
 
 v = np.matrix([x1, y1])
 w = np.matrix([x2, y2])
-p = np.matrix([checkPoint_x - 10, checkPoint_y - 1])
+p = np.matrix([10, 30])
 
 def dist(a, b):
     return math.sqrt((a[0,0] - b[0,0])**2 + (a[0,1] - b[0,1])**2)
