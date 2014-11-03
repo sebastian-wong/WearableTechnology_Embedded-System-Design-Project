@@ -8,6 +8,8 @@
 elapsedMillis timeElapsed;
 int ActivateVoiceRpiFlag = 0;
 int EnterFlag = 0;
+int BlockFlag = 0;
+int CancelVoiceFlag = 0;
 
 //for key 5
 
@@ -18,6 +20,10 @@ KeyState key_state = IDLE ;
 KeyState prev_key_state = IDLE ;
 
 int activate_voice = 0;
+
+int block = 0;
+
+int cancel_voice = 0;
 
 int debounceFlag = 0;
 
@@ -72,6 +78,8 @@ void setup(){
 void loop(){
     ActivateVoiceRpiFlag = 0; //This represents the entirety of the function that sends data to the Rpi and resets the flag
     EnterFlag = 0; //  user input to be taken and send to Rpi and resets the flag
+    BlockFlag = 0;
+    CancelVoiceFlag = 0;
     if(debounceFlag == 0){
       key = keypad.getKey();
       debounceFlag = 1;
@@ -79,30 +87,53 @@ void loop(){
     }
     if(debounceFlag == 1) {
       debounceFlag = 0; //bounce finish
-      if (key != NO_KEY && key =='5'){
+      if (key != NO_KEY && key =='5'|| key == '0'|| key == '8'){
         timeElapsed = 0;
         while (timeElapsed < interval_key5 ){
           key_state = keypad.getKeyState();     
           if((key_state == 3 && prev_key_state == 1)){ 
-            activate_voice = 0; 
+            if(key == '5')
+              activate_voice = 0; 
+            else if(key == '0')
+              block = 0;
+            else if(key == '8')
+              cancel_voice = 0;
             break;
           } 
           prev_key_state = key_state;
         }  
          
         if (key_state == 1 && prev_key_state == 1){
-          activate_voice = 1;
-          ActivateVoiceRpiFlag = 1; //The sending function will set this flag to 0 when it is sent
+          if(key == '5'){
+            activate_voice = 1;
+            ActivateVoiceRpiFlag = 1; //The sending function will set this flag to 0 when it is sent
+          }
+          else if(key == '0'){
+            block = 1;
+            BlockFlag = 1;
+          }
+          else if(key == '8'){
+            cancel_voice = 1;
+            CancelVoiceFlag = 1;
+          }
         }   
-
-         
-        if (activate_voice == 0){
+    
+        if (key == '5' && activate_voice == 0 || key == '0' && block == 0 || key == '8' && cancel_voice == 0 ){
           checkKey();
          }
          
         Serial.print("activate_voice : "); //set some other flag to send data to RPi
         Serial.println(activate_voice);
+        
+        Serial.print("block : ");
+        Serial.println(block);
+        
+        Serial.print("cancel_voice : ");
+        Serial.println(cancel_voice);
+             
         activate_voice = 0;
+        block = 0;
+        cancel_voice = 0;
         prev_key_state = key_state;
         key = '?';       
         

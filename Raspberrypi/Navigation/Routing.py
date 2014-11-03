@@ -141,6 +141,25 @@ class Map:
 
                 return path
 
+        def dist(a, b):
+                return math.sqrt((a[0,0] - b[0,0])**2 + (a[0,1] - b[0,1])**2)
+
+        def minDist(v, w, p):
+                l_sq = (v[0,0] - w[0,0])**2 + (v[0,1] - w[0,1])**2
+                mid_point = ( v + w ) / 2
+                if l_sq == 0:
+                        return dist(p, v), v
+                a = p - v
+                b = w - v
+                t = np.dot(a, b.transpose()) / l_sq
+                if t < 0:
+                        return self.dist(p, mid_point), mid_point            # beyond the v end of the segment
+                elif t > 1:
+                        return self.dist(p, mid_point), mid_point            # beyond the w end of the segment
+                else:
+                        projection = v + t * ( w - v )                  # projection falls on the segment
+                        return self.dist(p, projection), projection        
+
         def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker):
                 #threading.Timer(1.0, provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)).start()
                 print "start of function"
@@ -191,9 +210,48 @@ class Map:
                                         #getting coordinates of next checkpoint
                                         checkPoint_x = int(mapinfo['map'][nextCheckPoint - 1]['x'])
                                         checkPoint_y = int(mapinfo['map'][nextCheckPoint - 1]['y'])
-                                        dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
-                                        checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
 
+                                        # prev dist calculation plus direction
+##                                        dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
+##                                        checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
+
+                                        # testing new paradigm
+                                        C = 0
+                                        prevCheckPoint_x = int(mapinfo['map'][currentCheckPoint - 1]['x'])
+                                        prevCheckPoint_y = int(mapinfo['map'][currentCheckPoint - 1]['y'])
+                                        try:
+                                                gradientTanLine = ( prevCheckPoint_x - checkPoint_x ) / ( checkPoint_y - prevCheckPoint_y )
+                                        except ZeroDivisionError:
+                                                gradientTanLine = sys.maxint if ( prevCheckPoint_x - checkPoint_x > 0 ) else - sys.maxint - 1
+                                        verticalLine = False
+                                        if (gradientTanLine == sys.maxint or gradientTanLine == (- sys.maxint - 1) ):
+                                                C = checkPoint_x
+                                                gradientTanLine = 0
+                                                verticalLine = True
+                                        else:
+                                                C = checkPoint_y - gradientTanLine * checkPoint_x
+                                        lineSegDist = 100
+                                        a_Quad_Coeff = 1 + gradientTanLine**2
+                                        b_Quad_Coeff = 2*gradientTanLine*C - 2*checkPoint_x - 2*gradientTanLine*checkPoint_y
+                                        c_Quad_Coeff = checkPoint_x**2 + checkPoint_y**2 - 2*checkPoint_y*C + C**2 - lineSegDist**2
+
+                                        if not verticalLine:
+                                                x1, x2 = solveQuadEq(a_Quad_Coeff, b_Quad_Coeff, c_Quad_Coeff)
+                                                y1 = gradientTanLine * x1 + C
+                                                y2 = gradientTanLine * x2 + C
+                                        else:
+                                                x1 = checkPoint_x
+                                                x2 = checkPoint_x
+                                                y1 = C + lineSegDist
+                                                y2 = C + lineSegDist
+                                        v = np.matrix([x1, y1])
+                                        w = np.matrix([x2, y2])
+                                        p = np.matrix([pos_x, pos_y])
+
+                                        dist, ref_point = self.minDist(v, w, p)
+                                        checkpoint_direction = [ref_point[0,0] - pos_x, ref_point[0,1] - pos_y]
+
+                                        
                                         #getting coordinates of other adjacent checkpoints
                                         otherCheckPoint = []
                                         str = mapinfo['map'][currentCheckPoint - 1]['linkTo']
@@ -386,6 +444,7 @@ def stringParser(userInput):
                         userInput_proc = userInput_proc + str(sample[k]) + ' '
         print userInput_proc
 	return userInput_proc.rstrip()
+
 
 
 if __name__ == '__main__':
