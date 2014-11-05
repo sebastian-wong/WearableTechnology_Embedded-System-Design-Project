@@ -11,9 +11,10 @@ import threading
 import time
 import shelve
 
-from data_parser import DataParser
-from espeak_cls import AudioFeedback
-from Speechrecogniser import SpeechRecognition
+from multiprocessing import Process, Queue
+from data_parser_dis import DataParser
+from espeak_cls_edited import AudioFeedback
+from Speechrecogniser_edited import SpeechRecognition
 
 def signal_handler(signal, frame):
         #sys.modules[__name__].__dict__.clear()
@@ -30,20 +31,24 @@ class Map:
         northAt = 0
         pos_x = 0
         pos_y = 0
+	prev_step_compass_reading = None
+	Activation = None
 
         def __init__(self, mapinfo):
                 northAt = int(mapinfo['info']['northAt'])
                 nodeConnectList = []
                 nodeConnectVector = []
                 for i in range(len(mapinfo['map'])):
-                        nodeId = mapinfo['map'][i]['nodeId']
-                        linkTo = []
+                        nodeId = int( mapinfo['map'][i]['nodeId'] )
+                        #nodeId = mapinfo['map'][i]['nodeId']
+			linkTo = []
                         str = mapinfo['map'][i]['linkTo']
                         linkTo = [int(s) for s in str.split(",")]
                         nodeConnectVector.append(nodeId)
                         nodeConnectVector.append(linkTo)
                         nodeConnectList.append(nodeConnectVector)
                         nodeConnectVector = []
+		nodeConnectList.sort()
 
                 coordinatesNodes = []
                 for i in range(len(mapinfo['map'])):
@@ -140,134 +145,244 @@ class Map:
                         backtrack = Map.prev[backtrack] - 1
 
                 return path
+        
+        def calcDisplacement(self, step, compass_read, i, pos_x, pos_y, nextCheckPoint, currentCheckPoint):
+		print 'in calcDisplacement\n\n\n'
+		reachCheckPoint = False
+		detourCheckPoint = False
+		direction = '%s %lf degrees, %lf'
+		speak_direction = '%s %d degrees, %d point %d meters\n'
+		
+		per_step_dist = 60
+                distance = per_step_dist * step
+		print 'distance', distance
+		
+		#if step = 0, i = 5
+		print 'value of i', i
+		print 'compass_read in calcDisplacement', compass_read
+		heading = compass_read[i*2] * (2**8) + compass_read[i*2+1]
+                print 'heading', heading
+
+		print 'before check prev_step_compass_reading'	
+		#negate step taken if turning angle is too large to be reasonably taken while moving forward
+##		if ( Map.prev_step_compass_reading is not None ) and ( abs(Map.prev_step_compass_reading - heading) > 60 ):
+##			distance = 0
+##		Map.prev_step_compass_reading = heading
+		print 'after check prev_step_compass_reading'
+		
+		print 'is distance the problem'
+		print 'distance is', distance	
+                if distance < 0:
+                        raise Exception("negative distance invalid")
+                print "distance is not the problem"
+		
+		#compensating for magnetometer direction on bag
+		heading = int(heading) - 90
+		heading %= 360
+		heading = abs(heading)
+
+		#compensating for map northAt
+		heading = int(heading) - (360 - Map.northAt)
+		heading %= 360
+		print '***DEBUGGING BEGINS***\n\n\n'
+                print 'heading after compensation', heading
+                #calculating displacement
+                pos_x_delta = distance * math.sin(math.radians(heading))
+                pos_y_delta = distance * math.cos(math.radians(heading))
+
+                #calculating new position
+                pos_x = float(pos_x) + pos_x_delta
+                pos_y = float(pos_y) + pos_y_delta
+                print "current coordinates (", pos_x, ", ", pos_y, " )"
+                #getting coordinates of next checkpoint
+                checkPoint_x = int(mapinfo['map'][nextCheckPoint - 1]['x'])
+                checkPoint_y = int(mapinfo['map'][nextCheckPoint - 1]['y'])
+                dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
+                checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
+		
+		print 'checkpoing_direction =', checkpoint_direction
+
+                #getting coordinates of other adjacent checkpoints
+                otherCheckPoint = []
+                str = mapinfo['map'][currentCheckPoint - 1]['linkTo']
+                print "linkTo", str
+                otherCheckPoint = [int(s) for s in str.split(",")]
+                otherCheckPoint.remove(nextCheckPoint)
+                if len(otherCheckPoint) > 1:
+                        print "number of adjacent checkpoints, ", len(otherCheckPoint)
+                        otherCheckPoint_x = []
+                        otherCheckPoint_y = []
+                        #print "still ok"
+                        for j in range(len(otherCheckPoint)):
+                                otherCheckPoint_x.append(int(mapinfo['map'][otherCheckPoint[j] - 1]['x']))
+                                otherCheckPoint_y.append(int(mapinfo['map'][otherCheckPoint[j] - 1]['y']))
+                        print "check borders"
+                        print otherCheckPoint_x
+                        print otherCheckPoint_y
+                        left_x = min(otherCheckPoint_x) if min(otherCheckPoint_x) < checkPoint_x else - sys.maxint - 1
+                        right_x = max(otherCheckPoint_x) if max(otherCheckPoint_x) > checkPoint_x else sys.maxint
+                        bottom_y = min(otherCheckPoint_y) if min(otherCheckPoint_y) < checkPoint_y else - sys.maxint - 1
+                        top_y = max(otherCheckPoint_y) if max(otherCheckPoint_y) > checkPoint_y else sys.maxint
+
+                        if (pos_x <= left_x or pos_x >= right_x) or (pos_y <= bottom_y or pos_y >= top_y):
+                                detourCheckPoint = True
+				speak_direction = 'detour'
+                                return reachCheckPoint, pos_x, pos_y, detourCheckPoint, speak_direction
+
+                try:
+                        #tan_direction = checkpoint_direction[1] / checkpoint_direction[0]
+			tan_direction = checkpoint_direction[0] / checkpoint_direction[1]
+                except ZeroDivisionError:
+                        if checkpoint_direction[1] >= 0:
+                                tan_direction = sys.maxint
+                        else:
+                                tan_direction = - sys.maxint - 1
+
+                heading_direction = math.degrees(math.atan(tan_direction))
+                print 'heading_direction raw', heading_direction
+		
+		if checkpoint_direction[0] >= 0 and checkpoint_direction[1] >= 0:
+                        heading_direction = heading_direction
+                elif checkpoint_direction[0] < 0 and checkpoint_direction[1] >= 0:
+                        heading_direction = 360 + heading_direction
+                else:
+                        heading_direction = 180 +  heading_direction
+		
+		print 'heading_direction bearing', heading_direction
+                change_direction = heading_direction - heading
+		print 'change_direction raw', change_direction
+                if change_direction > 180:
+                        change_direction = -1 * (360 - change_direction)
+		elif change_direction < -180:
+			change_direction =  360 + change_direction
+		print 'change_direction direction', change_direction
+		print 'in calcDisplacement, distance to next checkPoint is ', dist
+                if dist >= 100:
+                        if change_direction >= 25:
+                                turn_instruction = 'clockwise'
+                                direction = direction %(turn_instruction, change_direction, dist)
+                                speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
+                        elif change_direction <= -25:
+                                turn_instruction = 'anticlockwise'
+                                direction = direction %(turn_instruction, abs(change_direction), dist)
+                                speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist/100), int((dist%100)/10))
+                        else:
+                                turn_instruction = 'go straight'
+				direction = '%s, %d point %d meters'
+                                speak_direction = direction %(turn_instruction, int(dist/100), int((dist%100)/10))
+                                                
+                else:
+                        speak_direction = 'checkpoint reached!\n'
+                        reachCheckPoint = True
+
+                print 'end of calcDisplacement\n\n\n'        
+                return reachCheckPoint, pos_x, pos_y, detourCheckPoint, speak_direction
+        
+     
 
         def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker):
-                #threading.Timer(1.0, provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y)).start()
-                print "start of function"
+                print "start of provideDirections function"
                 sayNextCheckPoint = 'your next checkpoint is %s\n' %(mapinfo['map'][nextCheckPoint - 1]['nodeName'])
-		speaker.threadedFeedback(sayNextCheckPoint)
-                detourCheckPoint = False
+		#speaker.threadedFeedback(sayNextCheckPoint)
+                speaking_proc = Process(target=speaker.threadedFeedback, args=(sayNextCheckPoint,))
+		speaking_proc.start()
+		speaking_proc.join()
+		detourCheckPoint = False
                 reachCheckPoint = False
                 start_time = time.time()
+                time_to_speak = time.time()
+		dist = None
+		change_direction = None
+		direction = '%s %lf degrees, %lf'
+		speak_direction = '%s %d degrees, and walk %d point %d meters\n'
+		isFirstTimeGivingDirections = False
+		isFirstTimeProcDirections = True
+		oneSecondHasPassed = False
 
                 while True:
-                        if (time.time() - start_time > 1):
+                        if (time.time() - start_time > 1) or isFirstTimeProcDirections:
                                 start_time = time.time()
                                 #distance, heading = input()
-                                #dataParser = DataParser()
-                                #distance = input()
-                                #heading_arr = dataParser.get_compass_read()
-                                #heading = heading_arr[0]
-                                #del dataParser
                                 dataParser = DataParser()
                                 step = dataParser.get_step_read()
-                                print "step", step
+                                print "NUMBER OF STEPS %d\n", step
                                 compass_read = dataParser.get_compass_read()
+				IR_read = dataParser.get_IR_read()
+				#sonar_read = dataParser.get_ultrasound_read()
                                 print "compass_read", compass_read
+				warnUser = False
                                 del dataParser
+				
+				head_IR_long = IR_read[0]
+                                left_IR_short = IR_read[1]
+                                right_IR_short = IR_read[2]
+                                belt_IR_long = IR_read[3]
+				
+				print 'printing IR values'
+				print 'head_IR_long', head_IR_long
+				print 'left_IR_short', left_IR_short
+				print 'right_IR_short', right_IR_short
+				print 'belt_IR_long', belt_IR_long
+	
+				if head_IR_long < 100:
+					print 'obstacle ahead'
+					warningObstacle = 'obstacle ahead'
+					#warnUser = True
+				if left_IR_short < 50:
+					print 'obstacle to your left'
+					warningObstacle = 'warning'
+					#warnUser = True
+				if right_IR_short < 70:
+					print 'obstacle to your right'
+					warningObstacle = 'obstacle to your right'
+					#warnUser = True
+				if belt_IR_long > 150:
+					print 'obstacle below'
+					warningObstacle = 'obstacle below'
+					#warnUser = True
+				print 'clear the checking of IR values'	
+				
+				if warnUser:
+					warnUser = False
+					warn_time = time.time()
+					if (time.time() - warn_time > 2):
+						speaking_proc = Process(target=speaker.threadedFeedback, args=(warningObstacle,))
+                                        	speaking_proc.start()
+                                        	speaking_proc.join()
+				else:
+					print 'no warning'
 
-                                for i in range(step):
-                                        per_step_dist = 40
-                                        distance = per_step_dist
-                                        heading = compass_read[i*2] * (2**8) + compass_read[i*2+1]
-                                        print "distance", distance
-                                        print "heading", heading
-                                        if distance < 0:
-                                                raise Exception("negative distance invalid")
-                                        print "distance is not the problem"
-                                        #compensating for map northAt
-                                        heading = int(heading) - (360 - Map.northAt)
-                                        heading %= 360
+				if not isFirstTimeProcDirections:
+                                	if step == 0:
+						print 'going into calcDisplacement\n\n\n'
+                                	        reachCheckPoint, pos_x, pos_y, detourCheckPoint, speak_direction = self.calcDisplacement(0, compass_read, 5, pos_x, pos_y, nextCheckPoint, currentCheckPoint)
+					else:
+                                		for i in range(step):
+							print 'step #', i
+                                        		reachCheckPoint, pos_x, pos_y, detourCheckPoint, speak_direction = self.calcDisplacement(1, compass_read, i, pos_x, pos_y, nextCheckPoint, currentCheckPoint)
+				if oneSecondHasPassed:
+					isFirstTimeGivingDirections = True
+					oneSecondHasPassed = False
 
-                                        print "heading", heading
-                                        #calculating displacement
-                                        pos_x_delta = distance * math.sin(math.radians(heading))
-                                        pos_y_delta = distance * math.cos(math.radians(heading))
+				if isFirstTimeProcDirections:
+					oneSecondHasPassed = True
+					isFirstTimeProcDirections = False
 
-                                        #calculating new position
-                                        pos_x = float(pos_x) + pos_x_delta
-                                        pos_y = float(pos_y) + pos_y_delta
-                                        print "current coordinates (", pos_x, ", ", pos_y, " )"
-                                        #getting coordinates of next checkpoint
-                                        checkPoint_x = int(mapinfo['map'][nextCheckPoint - 1]['x'])
-                                        checkPoint_y = int(mapinfo['map'][nextCheckPoint - 1]['y'])
-                                        dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
-                                        checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
+                        if (time.time() - time_to_speak > 5) or isFirstTimeGivingDirections:
+				isFirstTimeGivingDirections = False
+                                time_to_speak = time.time()
+                                speaking_proc = Process(target=speaker.threadedFeedback, args=(speak_direction,))
+                                speaking_proc.start()
 
-                                        #getting coordinates of other adjacent checkpoints
-                                        otherCheckPoint = []
-                                        str = mapinfo['map'][currentCheckPoint - 1]['linkTo']
-                                        print "linkTo", str
-                                        otherCheckPoint = [int(s) for s in str.split(",")]
-                                        otherCheckPoint.remove(nextCheckPoint)
-                                        if len(otherCheckPoint) > 1:
-                                                print "number of adjacent checkpoints, ", len(otherCheckPoint)
-                                                otherCheckPoint_x = []
-                                                otherCheckPoint_y = []
-                                                print "still ok"
-                                                for j in range(len(otherCheckPoint)):
-                                                        otherCheckPoint_x.append(int(mapinfo['map'][otherCheckPoint[j] - 1]['x']))
-                                                        otherCheckPoint_y.append(int(mapinfo['map'][otherCheckPoint[j] - 1]['y']))
-                                                print "check borders"
-                                                print otherCheckPoint_x
-                                                print otherCheckPoint_y
-                                                left_x = min(otherCheckPoint_x) if min(otherCheckPoint_x) < checkPoint_x else - sys.maxint - 1
-                                                right_x = max(otherCheckPoint_x) if max(otherCheckPoint_x) > checkPoint_x else sys.maxint
-                                                bottom_y = min(otherCheckPoint_y) if min(otherCheckPoint_y) < checkPoint_y else - sys.maxint - 1
-                                                top_y = max(otherCheckPoint_y) if max(otherCheckPoint_y) > checkPoint_y else sys.maxint
+                        if reachCheckPoint:
+                                speak_direction = 'checkpoint reached'
+                                speaking_proc = Process(target=speaker.threadedFeedback, args=(speak_direction,))
+                                speaking_proc.start()
+                                break
 
-                                                if (pos_x <= left_x or pos_x >= right_x) or (pos_y <= bottom_y or pos_y >= top_y):
-                                                        detourCheckPoint = True
-                                                        return reachCheckPoint, pos_x, pos_y, detourCheckPoint
-
-                                        try:
-                                                tan_direction = checkpoint_direction[1] / checkpoint_direction[0]
-                                        except ZeroDivisionError:
-                                                if checkpoint_direction[1] >= 0:
-                                                        tan_direction = sys.maxint
-                                                else:
-                                                        tan_direction = - sys.maxint - 1
-
-                                        heading_direction = math.degrees(math.atan(tan_direction))
-                                        if checkpoint_direction[1] >= 0 and checkpoint_direction[0] >= 0:
-                                                heading_direction = 90 - heading_direction
-                                        elif checkpoint_direction[1] < 0 and checkpoint_direction[0] >= 0:
-                                                heading_direction = 90 - heading_direction
-                                        elif checkpoint_direction[1] < 0 and checkpoint_direction[0] < 0:
-                                                heading_direction = 270 - heading_direction
-                                        else:
-                                                heading_direction = 270 - heading_direction
-
-                                        direction = '%s %lf degrees, %lf'
-                                        speak_direction = '%s %d degrees, and walk %d point %d meters\n'
-                                        change_direction = heading_direction - heading
-                                        if change_direction > 180:
-                                                change_direction = -1 * (change_direction - 180)
-                                        elif change_direction < -180:
-                                                change_direction = -1 * (change_direction + 180)
-
-                                        if dist >= 20:
-                                                if change_direction >= 10:
-                                                        turn_instruction = 'turn clockwise'
-                                                        direction = direction %(turn_instruction, change_direction, dist)
-                                                        speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
-                                                elif change_direction <= -10:
-                                                        turn_instruction = 'turn anticlockwise'
-                                                        direction = direction %(turn_instruction, abs(change_direction), dist)
-                                                        speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist/100), int((dist%100)/10))
-                                                else:
-                                                        turn_instruction = 'go straight'
-                                                        direction = direction %(turn_instruction, change_direction, dist)
-                                                        speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
-
-                                                print direction
-                                                speaker.threadedFeedback(speak_direction)
-                                        else:
-                                                print "checkpoint reached!"
-                                                sayReachCheckPoint = 'checkpoint reached!\n'
-                                                speaker.threadedFeedback(sayReachCheckPoint)
-                                                reachCheckPoint = True
-                                                break
+                        if detourCheckPoint:
+                                break
+                                
 
                 return reachCheckPoint, pos_x, pos_y, detourCheckPoint
 
@@ -293,7 +408,10 @@ class Map:
                                                 nextNode = 'followed by %s ' % mapinfo['map'][path[len(path)-1-i]-1]['nodeName']
                                                 routeSpeechInfo = routeSpeechInfo + nextNode
                                 routeSpeechInfo = routeSpeechInfo + '\n'
-                                speaker.threadedFeedback(routeSpeechInfo)
+                                #speaker.threadedFeedback(routeSpeechInfo)
+				speaking_proc = Process(target=speaker.threadedFeedback, args=(routeSpeechInfo,))
+				speaking_proc.start()
+				speaking_proc.join()
                                 sayPathRoute = False
 
                         reachCheckPoint = True
@@ -316,18 +434,24 @@ class Map:
                                         if detourCheckPoint:
                                                 print 'detour!'
                                                 sayDetour = 'detour! recalculating route'
-                                                speaker.threadedFeedback(sayDestinationReached)
-                                                calculatePath = True
+                                                #speaker.threadedFeedback(sayDestinationReached)
+                                                speaking_proc = Process(target=speaker.threadedFeeback, args=(sayDetour,))
+						speaking_proc.start()
+						speaking_proc.join()
+						calculatePath = True
                                                 path[:] = []
                                                 sayPathRoute = True
                                                 break
                                 except Exception:
-                                        print "INVALID DISTANCE!"
+					print 'INVALID DISTANCE'
 
                         if ((not path) and (reachDestination == True)):
                                 print "destination reached!"
                                 sayDestinationReached = 'destination reached!\n'
-                                speaker.threadedFeedback(sayDestinationReached)
+                                #speaker.threadedFeedback(sayDestinationReached)
+				speaking_proc = Process(target=speaker.threadedFeedback, args=(sayDestinationReached,))
+				speaking_proc.start()
+				speaking_proc.join()
 
 def text2int(textnum, numwords={}):
     if not numwords:
@@ -364,7 +488,7 @@ def stringParser(userInput):
         sample = re.split(r'\s*', userInput)
         userInput_proc = ''
         for j in range(len(sample)):
-                if ((j > 0 or len(sample) == 1) and sample[j] == 'TO'):
+                if ((j > 0 or len(sample) == 1) and ( sample[j] == 'TO' or sample[j] == 'TOO')):
                         sample[j] = 'TWO'
                 try:
                         number = text2int(sample[j].lower())
@@ -387,27 +511,170 @@ def stringParser(userInput):
         print userInput_proc
 	return userInput_proc.rstrip()
 
+def receiveUserInput(systemRequestType, speechInput, speaker, userInputInitialise):
+	print 'in receiveUserInput function'
+	proceedAhead = False
+
+	def requestType(systemRequestType):
+		systemQuery = None
+		if systemRequestType == 'requestBuildingQuery':
+			systemQuery = 'please enter building name'
+			print 'entering name of building to systemQuery'
+		elif systemRequestType == 'requestLevelQuery':
+			systemQuery = 'please enter level of building'
+		elif systemRequestType == 'requestStartQuery':
+			systemQuery = 'please enter starting location'
+		elif systemRequestType == 'requestDestQuery':
+			systemQuery = 'please enter destination location'
+		elif systemRequestType == 'requestRepeatQuery':
+			systemQuery = 'please repeat input'
+		elif systemRequestType == 'requestStartNavigation':
+			systemQuery = 'would you like to start navigation'
+		else:
+			pass
+
+		return systemQuery
+	
+	print 'systemRequestType is', systemRequestType	
+	systemQuery = requestType(systemRequestType)
+	print 'systemQuery is', systemQuery
+	speaker_proc = Process(target=speaker.threadedFeedback, args=(systemQuery,))
+	speaker_proc.start()
+	speaker_proc.join()
+	
+	userInput = None
+	if speechInput is not None:
+		userInput = Queue()
+		receive_input_proc = Process(target=speechInput.speechRecognise, args=(userInput,))
+		receive_input_proc.start()
+		receive_input_proc.join()
+		userInput = userInput.get()
+	else:
+		voiceInput, numpadData = userInputInitialise.location_input()
+		print 'numpadData is', numpadData
+		try:
+			userInput = int(''.join(map(str,numpadData)))
+		except:
+			print 'empty numpadData'
+			return 'empty input'
+		
+		if ( systemQuery == 'please enter starting location' ) or ( systemQuery == 'please enter destination location' ):
+			userInput = 'node %d' % userInput
+	print 'userInput is', userInput
+	userInput = str(userInput)
+	return userInput
+
+
+def confirmUserInput(userInputType, userInput, speechInput, speaker, userInputInitialise):
+        print 'in confirmUserInput function'
+	proceedAhead = False
+        revertPrevProc = True
+
+	def inputType(userInputType):
+		inputQuery = None
+		if userInputType == 'confirmBuildingQuery':
+			inputQuery = 'please confirm that %s is the name of the building' % userInput
+		elif userInputType == 'confirmLevelQuery':
+			inputQuery = 'please confirm you are in level %s' %userInput
+		elif userInputType == 'confirmStartQuery':
+			inputQuery = 'please confirm that your starting location is %s' % userInput
+		elif userInputType == 'confirmDestQuery':
+			inputQuery = 'please confirm that your destination location is %s' % userInput
+		elif userInputType == 'confirmStartNavigation':
+			inputQuery = 'please acknowledge to begin navigation guidance'
+		else:
+			pass
+
+		return inputQuery
+        
+	needToRepeatInput = False
+        while revertPrevProc:
+                print 'in revertPrevProc loop'
+		revertPrevProc = False
+                while not proceedAhead:
+			if needToRepeatInput:
+				print 'pls repeat input'
+				#userInput = raw_input()
+				userInput = receiveUserInput('requestRepeatQuery', speechInput, speaker, userInputInitialise)
+				userInput = stringParser(userInput)
+				if ( userInputType == 'confirmStartQuery' or userInputType == 'confirmDestQuery'):
+					userInput = 'node %s' % userInput
+
+                        inputQuery = inputType(userInputType)
+                        speaking_proc = Process(target=speaker.threadedFeedback, args=(inputQuery,))
+                        speaking_proc.start()
+                        speaking_proc.join()
+
+                        if speechInput is None:
+                                voiceInput, numpadData = userInputInitialise.location_input()
+                                if len(numpadData) == 0 or numpadData[0] == 2:
+                                        revertPrevProc = True
+					needToRepeatInput = True
+                                elif numpadData[0] == 1:
+					proceedAhead = True
+				else:
+                                        pass
+                        else:
+                                inputAnswer = Queue()
+                                recog_proc = Process(target=speechInput.speechRecognise, args=(inputAnswer,))
+                                recog_proc.start()
+                                recog_proc.join()
+				print 'processing inputAnswer'
+				testInputAnswer = inputAnswer.get()
+				print 'inputAnwer is ', testInputAnswer
+                                if testInputAnswer == 'AFFIRMATIVE':
+                                        proceedAhead = True
+                                elif testInputAnswer == 'NEGATIVE':
+                                        print 'acknowledged as needToRepeatInput'
+					revertPrevProc = True
+					needToRepeatInput = True
+                                else:
+                                        print 'inputAnswer is neither affirmative nor negative'
+					pass
+        #if userInput is None:
+	#	userInput = True
+	print 'userInput is', userInput
+	return userInput
+        
+
 
 if __name__ == '__main__':
         signal.signal(signal.SIGINT, signal_handler)
         #building = raw_input()
         #level = raw_input()
         internetConnection = False
-	speechInput = SpeechRecognition()
+	speechInput = None
 	speaker = AudioFeedback()
-	
-	speechRecognitionActMsg = 'speech recognition is activated\n'
-	speaker.threadedFeedback(speechRecognitionActMsg)
-	
-	speechBuildingName = 'please enter the name of the building'
-        speaker.threadedFeedback(speechBuildingName)
-	building = speechInput.speechRecognise()
-	building = stringParser(building)
+	userInputInitialise = DataParser()
+        
+	#initialising program announcement
+	initProgAnnouncement = 'program initiated. press hex for key pad input or hold 5 for voice input'
+	speaking_proc = Process(target=speaker.threadedFeedback, args=(initProgAnnouncement,))
+	speaking_proc.start()
+	speaking_proc.join()
 
-	speechBuildingLevel = 'please enter the level of building you are currently in'
-        speaker.threadedFeedback(speechBuildingLevel)
-	level = speechInput.speechRecognise()
+	voiceInput, numpadData = userInputInitialise.location_input()
+
+	if voiceInput:
+                print 'using voice input'
+                print 'initialising speech recognition'
+                speechInput = SpeechRecognition()
+        else:
+                print 'using keypad input'
+	
+	print 'starting program'
+	print 'please enter building name'
+	#building = raw_input()
+	building = receiveUserInput('requestBuildingQuery', speechInput, speaker, userInputInitialise)
+	building = stringParser(building)
+	building = confirmUserInput('confirmBuildingQuery', building, speechInput, speaker, userInputInitialise)
+	
+	print 'please enter level of building'
+	#level = raw_input()
+	level = receiveUserInput('requestLevelQuery', speechInput, speaker, userInputInitialise)
 	level = stringParser(level)
+	level = confirmUserInput('confirmLevelQuery', level, speechInput, speaker, userInputInitialise)
+	
 
         s = shelve.open('map_cache.db')
         while not internetConnection:
@@ -422,6 +689,10 @@ if __name__ == '__main__':
                 except:
                         internetConnection = False
                         print "NO INTERNET SIGNAL!"
+			downloadFailMsg = 'download failed, switching to cache'
+			speaking_proc = Process(target=speaker.threadedFeedback, args=(downloadFailMsg,))
+			speaking_proc.start()
+			speaking_proc.join()
                         try:
                                 mapinfo = s['map']
                                 internetConnection = True
@@ -432,24 +703,38 @@ if __name__ == '__main__':
         myMap = Map(mapinfo)
 
         print "northAt = ", myMap.northAt
+	
+	print 'please enter starting location'
         #startPlace = raw_input()
-        #destPlace = raw_input()
-	
-	speechPendingStartLoc = 'please enter your starting location'
-	speaker.threadedFeedback(speechPendingStartLoc)
-	startPlace = speechInput.speechRecognise()
-	
-	speechPendingDestLoc = 'please enter your destination location'
-	speaker.threadedFeedback(speechPendingDestLoc)
-	destPlace = speechInput.speechRecognise()
-
+	startPlace = receiveUserInput('requestStartQuery', speechInput, speaker, userInputInitialise)
 	startPlace = stringParser(startPlace)
+	startPlace = confirmUserInput('confirmStartQuery', startPlace, speechInput, speaker, userInputInitialise)
+	
+	print 'please enter destination location'
+	#destPlace = raw_input()
+	destPlace = receiveUserInput('requestDestQuery', speechInput, speaker, userInputInitialise)
 	destPlace = stringParser(destPlace)
+	destPlace = confirmUserInput('confirmDestQuery', destPlace, speechInput, speaker, userInputInitialise)
+	
+	print 'startPlace is', startPlace
+	print 'destPlace is', destPlace
 
         try:
                 startNode = int(myMap.searchNodeId(startPlace))
+		print 'startNode is', startNode
                 destNode = int(myMap.searchNodeId(destPlace))
+		print 'destNode is', destNode
         except Exception:
                 print "INVALID LOCATION!"
         else:
-                myMap.provideNavigation(speaker)
+		beginNaviGuide = receiveUserInput('requestStartNavigation', speechInput, speaker, userInputInitialise)
+		beginNaviGuide = confirmUserInput('confirmStartNavigation', beginNaviGuide, speechInput, speaker, userInputInitialise)
+		
+		if beginNaviGuide is not None:		
+			navi_proc = Process(target=myMap.provideNavigation, args=(speaker,))
+			navi_proc.start()
+		else:
+			cancelNaviMsg = 'navigation guidance cancelled'
+			speaking_proc = Process(target=speaker.threadedFeedback, args=(cancelNaviMsg,))
+			speaking_proc.start()
+			speaking_proc.join()
