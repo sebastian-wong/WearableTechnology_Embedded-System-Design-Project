@@ -1,5 +1,5 @@
 #include <Keypad.h>
-#include <avr/io.h>
+
 #include <avr/interrupt.h>
 #include <time.h>
 #include <Arduino.h>
@@ -13,6 +13,20 @@
 #include "MPU6050.h" 
 #include "HMC5883L.h"
 
+//compass
+#include "compass.h"
+
+#define F_CPU 16000000UL
+#define BAUDRATE 9600
+#define BAUD_PRESCALER (((F_CPU / (BAUDRATE * 16UL))) - 1)
+
+#define MAX_INTERVAL 1300 //Milliseconds
+#define MIN_INTERVAL 100 //Milliseconds
+
+uint8_t input = 0; //for incoming serial data
+uint8_t sensor_Len = 25;
+uint8_t divisor = 17;
+
 //Sensor pins
 #define sensorPin0 A0 //headIR
 #define sensorPin1 A1 //belt IR
@@ -24,17 +38,6 @@ byte shortRangeInfraredPin[] = {A2, A3}; //For shortrange polling
 int head_IR, head_ultrasound, waistCentre_IR, chestLeft, chestRight;
 int ultrasoundTrigPin = 2;
 int ultrasoundEchoPin = 3;
-
-//compass
-#include "compass.h"
-
-#define F_CPU 16000000UL
-#define BAUDRATE 9600
-#define BAUD_PRESCALER (((F_CPU / (BAUDRATE * 16UL))) - 1)
-
-uint8_t input = 0; //for incoming serial data
-uint8_t sensor_Len = 25;
-uint8_t divisor = 17;
 
 //for UART1
 static const int RX_BUFFER_SIZE = 20;
@@ -65,6 +68,8 @@ static uint8_t const ACK_NUM_CHECKSUM = 42;
 static uint8_t const NACK_NUM_CHECKSUM = 43;
 static uint8_t const VOICE     = 44;
 static uint8_t const ACK_VOICE     = 45;
+static uint8_t const PEDO      = 46;
+static uint8_t const ACK_PEDO = 47;
 
 //Sensor Acknowlegements 
 static uint8_t const ACK_S0 = 10;
@@ -104,12 +109,13 @@ static uint8_t const ACK_S24 = 34;
 */
 
 //Buffer storing all sensor values - Index of buffer represents id of sensor 
-uint8_t sensorData[25]   = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-uint8_t sensorDatacopy[25] = {0};
+uint8_t sensorData[25]   = {0, 1, 105, 1, 105, 1, 105, 1, 105, 1, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119};
+uint8_t sensorDatacopy[25] = {1};
 //to get from numpad file
 volatile char parser_buffer_keys_copy[10] = {'\0'};
 volatile int key_size = 0;
 volatile uint8_t ActivateVoiceRpiFlag = 0;
+volatile uint8_t ActivatepedoFlag = 0;
 volatile uint8_t enter_pressed = 0;
 volatile uint8_t enter = 0;
 int8_t checkSum = 0;
@@ -121,11 +127,12 @@ int8_t checkSum = 0;
 MPU6050 accelgyro;
 //HMC5883L compass;
 elapsedMillis timeElapsed;
+unsigned long previousHeadIRMillis = 0;
 
 unsigned long prevtime;
-int16_t precisionx = 300; 
-int16_t precisiony = 300; 
-int16_t precisionz = 300; 
+int16_t precisionx = 200; 
+int16_t precisiony = 200; 
+int16_t precisionz = 150; 
 int16_t ax, ay, az,gx,gy,gz,minx,miny,minz,maxx,maxy,maxz, ptpx, ptpy, ptpz,ptp, diff;
 int16_t magx[10];
 int16_t magy[10];
@@ -181,9 +188,9 @@ KeyState key_state = IDLE ;
 KeyState prev_key_state = IDLE ;
 
 int activate_voice = 0;
+int activate_pedo = 0;
 
-
-
+int head_IR_State = LOW; 
 
 
 const byte ROWS = 4; 
@@ -191,10 +198,10 @@ const byte COLS = 3;
 
 
 char keys[ROWS][COLS] = {
-  {'#','0','*'},
-  {'9','8','7'},
-  {'6','5','4'},
-  {'3','2','1'}
+  {'0','#','*'},
+  {'8','9','7'},
+  {'5','6','4'},
+  {'2','3','1'}
 };
 
 //use in arduino mega 2560
@@ -278,15 +285,15 @@ void longRangeInfraredSensorPoll()
   int infraredPinIndex = 0;
   float v = 0;
   float currentTotalReading = 0; //This thing is not just currentTotalReading, it's also used to hold the average and the return value.
-  while (infraredPinIndex < 2)
+  while (infraredPinIndex < 1)
   {  
     if (infraredPinIndex == 0){
     currentTotalReading=analogRead(sensorPin0);
     }
-    
-    if (infraredPinIndex == 1){
-    currentTotalReading=analogRead(sensorPin1);
-    }
+//    
+//    if (infraredPinIndex == 1){
+//    currentTotalReading=analogRead(sensorPin1);
+//    }
 
     v=(float)currentTotalReading*5.0/1024.0;
  
@@ -299,15 +306,19 @@ void longRangeInfraredSensorPoll()
    {
      currentTotalReading = 80;
    }
-   currentTotalReading -=80;
+//   currentTotalReading -=80;
     switch(infraredPinIndex)
     {
       case 0:
         head_IR = currentTotalReading;
+//        Serial.print("head_IR: ");
+//        Serial.println(head_IR);
         break;
-      case 1:
-        waistCentre_IR = currentTotalReading;
-        break;
+//      case 1:
+//        waistCentre_IR = currentTotalReading;
+//        Serial.print("waistCentre: ");
+//        Serial.println(waistCentre_IR);
+//        break;
     }
     
    currentTotalReading = 0;
@@ -327,6 +338,43 @@ void assignDistanceToData()
   sensorData[22]=chestLeft;
   sensorData[23]=chestRight;
   sensorData[24]=waistCentre_IR;
+}
+
+int return_motor_strength(int distance, int type)
+{
+  float unit;
+  int approxfreq = MIN_INTERVAL;
+  int cmrange = 0;
+  //Based on the distance detected by the sensor and the type of sensor, return the interval for the motor to vibrate at.
+  //Sensors are expected to ONLY return values withi their ranges.
+
+  if (type == 3) //Long-range IR, distance returned from 100 to 320 cm
+  {
+    cmrange = 220; //This may require an inverse of approxfreq - longer distances indicate obstacles or drops. Or I just use my brain
+  }
+  unit = (float)(MAX_INTERVAL - MIN_INTERVAL)/(float)cmrange;
+  
+  if (type == 3) {
+  approxfreq = MAX_INTERVAL - (distance*unit);
+  }  
+  return approxfreq;
+}
+
+void longrangeIR_motordriver(){
+ int longrangeHeadIR_delay = return_motor_strength(head_IR, 3);
+ Serial.println(longrangeHeadIR_delay);
+  unsigned long currentMillis = millis();
+
+    if(currentMillis - previousHeadIRMillis > longrangeHeadIR_delay) {
+      previousHeadIRMillis = currentMillis;   
+
+      if (head_IR_State == LOW)
+        head_IR_State = HIGH;
+      else
+        head_IR_State = LOW; 
+        
+      digitalWrite(5, head_IR_State);  
+    }
 }
 
 int16_t rollingAverage(int16_t *store, int size, int16_t entry)
@@ -626,20 +674,24 @@ void UART(){
                   USART_send(NUM);
                   break;
                 }
+                case ACK_PEDO:{
+                  break;
+                }
                 case READ  : {
-                  //   Serial.print("Received READ\n");
+                     Serial.print("Received READ\n");
                       USART_send(ACK_READ);
-                  //    Serial.print("Sent ACK_READ\n");
+                      Serial.print("Sent ACK_READ\n");
+                      assignDistanceToData();
                       copySensordata();
                       sensorDatacopy[11] = (int8_t)(((int16_t)bearing)>>8);
-                      sensorDatacopy[12] = (int8_t)((int16_t)bearing & 0xFF);
+                      sensorDatacopy[12] = (int8_t)((int16_t)bearing & 0xFF); 
                       sendSensorValue(0);
  
                       //flushRx();
                       checkSum = computeChecksumSensor();
                       //delay(1000);
 
-                     // Serial.print("Sent first value.\n");
+                      Serial.print("Sent first value.\n");
                       break;
                 }
                 
@@ -789,8 +841,8 @@ int steps(){
             }
             if (diff > precisionx && accx[count] < threshold && accx[count+1] > threshold && (timeElapsed - prevtime) <= 2000 && (timeElapsed-prevtime) >= 400){ //subsequent steps
              stepcount++;
-             Serial.println("Returning stepincrease for x.\n");
-             Serial.println(stepcount);
+             //Serial.println("Returning stepincrease for x.\n");
+             //Serial.println(stepcount);
              stepincrease = 1;
              prevtime = 0;  
              }
@@ -820,8 +872,8 @@ int steps(){
             if (diff > precisiony && accy[count] > threshold && accy[count+1] < threshold && (timeElapsed - prevtime) <= 2000 && (timeElapsed-prevtime) >= 400){ //subsequent steps
              stepcount++;
              stepincrease = 1;
-             Serial.println("Returning stepincrease for y.\n");
-             Serial.println(stepcount);
+             //Serial.println("Returning stepincrease for y.\n");
+             //Serial.println(stepcount);
             prevtime = 0; 
              }
             if ((timeElapsed-prevtime) > 2000){
@@ -856,8 +908,8 @@ int steps(){
             }
             if (diff > precisionz && accz[count] > threshold && accz[count+1] < threshold && (timeElapsed - prevtime) <= 2000 && (timeElapsed-prevtime) >= 400){ //subsequent steps
              stepcount++;
-             Serial.println("Returning stepincrease for z.\n");
-             Serial.println(stepcount);
+            // Serial.println("Returning stepincrease for z.\n");
+             //Serial.println(stepcount);
              stepincrease = 1;
             prevtime = 0; 
              }
@@ -883,16 +935,14 @@ int lastrecordedcount = 0;
 
 void copy_sensordata(){
   int i=0;
-  assignDistanceToData();
   for(i=0; i<25; i++){
     sensorDatacopy[i] = sensorData[i];
     sensorData[i] = 0;
   }
-  sensorDatacopy[11] = (int8_t)(((int16_t)bearing)>>8);
-  sensorDatacopy[12] = (int8_t)((int16_t)bearing & 0xFF); 
 }
 
 void get_Keypad_input(){
+  ActivatepedoFlag = 0;
   ActivateVoiceRpiFlag = 0; //This represents the entirety of the function that sends data to the Rpi and resets the flag
   EnterFlag = 0;
   if(debounceFlag == 0){
@@ -924,35 +974,73 @@ void get_Keypad_input(){
       }
     }         
     if( key != NO_KEY && key!= '*' && key!= '#'){   
-      if (key == '5'){
-        timeElapsed_keypad = 0;
-        while (timeElapsed_keypad < interval_key5 ){
+     // if (key == '5'){
+      if (key == '5'|| key == '1'){
+        timeElapsed = 0;
+        while (timeElapsed < interval_key5 ){
           key_state = keypad.getKeyState();
           if((key_state == 3 && prev_key_state == 1)){ 
-            activate_voice = 0; 
+           // activate_voice = 0;
+            if (key == '5'){
+              activate_voice = 0;
+            }
+            else if (key == '3'){
+              activate_pedo = 0;
+            }            
             break;
           } 
           prev_key_state = key_state;
         }
          
-        if (key_state == 1 && prev_key_state == 1){
+//        if (key_state == 1 && prev_key_state == 1){
+//          activate_voice = 1;
+//          ActivateVoiceRpiFlag = 1; //The sending function will set this flag to 0 when it is sent
+//        }    
+//        if (activate_voice == 0){
+//          buffer_keys[buffer_keys_count] = key;
+//          buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
+//        }
+
+         if (key_state == 1 && prev_key_state == 1 && key == '5'){
           activate_voice = 1;
           ActivateVoiceRpiFlag = 1; //The sending function will set this flag to 0 when it is sent
-        }    
-        if (activate_voice == 0){
-          buffer_keys[buffer_keys_count] = key;
+        }
+        
+          if (key_state == 1 && prev_key_state == 1 && key == '1'){
+          activate_pedo = 1;
+          ActivatepedoFlag = 1; //The sending function will set this flag to 0 when it is sent
+        }
+ 
+        if (activate_pedo == 0 && key == '1'){
+          buffer_keys[buffer_keys_count] = '1';
+          buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
+        }
+        else if (activate_voice == 0 && key =='5'){
+          buffer_keys[buffer_keys_count] = '5';
           buffer_keys_count = (buffer_keys_count + 1)%(array_size) ;
         }
 
-        Serial.print("activate_voice : "); //set some other flag to send data to RPi
-        Serial.println(activate_voice);
-        activate_voice = 0;
+        //Serial.println(key);
+        //Serial.println("testing values :");
+        //Serial.print("activate_pedo : "); //set some other flag to send data to RPi
+        //Serial.println(activate_pedo);
+        
+        //Serial.print("activate_voice : "); //set some other flag to send data to RPi
+        //Serial.println(activate_voice);
+        
+        
+        if (activate_voice == 1){
+          activate_voice = 0;
+        }
+        if (activate_pedo == 1){
+          activate_pedo = 0;
+        }
         prev_key_state = key_state;
         key = '?';       
         
       }    
       else{   
-        Serial.println(key);
+        //Serial.println(key);
         buffer_keys[buffer_keys_count] = key;
         buffer_keys_count = (buffer_keys_count + 1)%(array_size);      
       }
@@ -961,10 +1049,6 @@ void get_Keypad_input(){
 }
 
 void setup(){
-  pinMode(sensorPin0, INPUT); 
-  pinMode(sensorPin1, INPUT);
-  pinMode(sensorPin2, INPUT);
-  pinMode(sensorPin3, INPUT);
   USART_interrupt_init();
   Serial.begin(9600);
   Wire.begin();
@@ -999,6 +1083,14 @@ void setup(){
   int a;
   for( a = 0; a<array_size; a++)
     buffer_keys[a] = '?';
+
+  pinMode(sensorPin0, INPUT); 
+  pinMode(sensorPin1, INPUT);
+  pinMode(sensorPin2, INPUT);
+  pinMode(sensorPin3, INPUT);
+  
+  //motor for head
+  pinMode(5, OUTPUT);
 }
 
 void loop()
@@ -1042,45 +1134,36 @@ void loop()
  
   if(ActivateVoiceRpiFlag == 1){
     USART_send(VOICE);
-    Serial.print("VOICE sent\n");
+    //Serial.print("VOICE sent\n");
+    ActivateVoiceRpiFlag = 0;
   }
   else if (EnterFlag == 1){
     USART_send(NUM);
-    Serial.print("NUM sent\n");
-    Serial.println(buffer_keys_count);
-    Serial.println(key_size);
+    //Serial.print("NUM sent\n");
+    //Serial.println(buffer_keys_count);
+    //Serial.println(key_size);
     for(i=0; i<(int)key_size; i++){
       parser_buffer_keys_copy[i] = parser_buffer_keys[i];
-      Serial.println((char)parser_buffer_keys_copy[i]);
+     // Serial.println((char)parser_buffer_keys_copy[i]);
     }
     enter = 1;
   }
-  //end of keypad
  
  if(compass_index <10 && step_count == 1){
    sensorData[compass_index++] = (int8_t)(((int16_t)bearing)>>8); //MSB
    sensorData[compass_index++] = (int8_t)((int16_t)bearing & 0xFF); //LSB
    sensorData[0]++;
-   Serial.println(sensorData[0]);
+   //Serial.println(sensorData[0]);
    step_count = 0;
 }
  
  if (compass_index == 10){
    compass_index = 1;
  }
- 
-  ultrasoundSensorPoll();
-  shortRangeInfraredSensorPoll();
   longRangeInfraredSensorPoll();
- 
- 
+   longrangeIR_motordriver();
  if(StrRxFlag == 1)
  {
-   //freeze_step_data();
-   //copy_sensordata();
-//   if(sensorData[0]>0){
-//     Serial.write("Steps more than 1.\n");
-//   }
    UART();
  }
 }

@@ -280,6 +280,25 @@ class Map:
         
      
 
+        def dist(a, b):
+                return math.sqrt((a[0,0] - b[0,0])**2 + (a[0,1] - b[0,1])**2)
+
+        def minDist(v, w, p):
+                l_sq = (v[0,0] - w[0,0])**2 + (v[0,1] - w[0,1])**2
+                mid_point = ( v + w ) / 2
+                if l_sq == 0:
+                        return dist(p, v), v
+                a = p - v
+                b = w - v
+                t = np.dot(a, b.transpose()) / l_sq
+                if t < 0:
+                        return self.dist(p, mid_point), mid_point            # beyond the v end of the segment
+                elif t > 1:
+                        return self.dist(p, mid_point), mid_point            # beyond the w end of the segment
+                else:
+                        projection = v + t * ( w - v )                  # projection falls on the segment
+                        return self.dist(p, projection), projection        
+
         def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker):
                 print "start of provideDirections function"
                 sayNextCheckPoint = 'your next checkpoint is %s\n' %(mapinfo['map'][nextCheckPoint - 1]['nodeName'])
@@ -312,6 +331,7 @@ class Map:
                                 print "compass_read", compass_read
 				warnUser = False
                                 del dataParser
+<<<<<<< HEAD
 				
 				head_IR_long = IR_read[0]
                                 left_IR_short = IR_read[1]
@@ -383,6 +403,150 @@ class Map:
                         if detourCheckPoint:
                                 break
                                 
+=======
+
+                                for i in range(step):
+                                        per_step_dist = 40
+                                        distance = per_step_dist
+                                        heading = compass_read[i*2] * (2**8) + compass_read[i*2+1]
+                                        print "distance", distance
+                                        print "heading", heading
+                                        if distance < 0:
+                                                raise Exception("negative distance invalid")
+                                        print "distance is not the problem"
+                                        #compensating for map northAt
+                                        heading = int(heading) - (360 - Map.northAt)
+                                        heading %= 360
+
+                                        print "heading", heading
+                                        #calculating displacement
+                                        pos_x_delta = distance * math.sin(math.radians(heading))
+                                        pos_y_delta = distance * math.cos(math.radians(heading))
+
+                                        #calculating new position
+                                        pos_x = float(pos_x) + pos_x_delta
+                                        pos_y = float(pos_y) + pos_y_delta
+                                        print "current coordinates (", pos_x, ", ", pos_y, " )"
+                                        #getting coordinates of next checkpoint
+                                        checkPoint_x = int(mapinfo['map'][nextCheckPoint - 1]['x'])
+                                        checkPoint_y = int(mapinfo['map'][nextCheckPoint - 1]['y'])
+
+                                        # prev dist calculation plus direction
+##                                        dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
+##                                        checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
+
+                                        # testing new paradigm
+                                        C = 0
+                                        prevCheckPoint_x = int(mapinfo['map'][currentCheckPoint - 1]['x'])
+                                        prevCheckPoint_y = int(mapinfo['map'][currentCheckPoint - 1]['y'])
+                                        try:
+                                                gradientTanLine = ( prevCheckPoint_x - checkPoint_x ) / ( checkPoint_y - prevCheckPoint_y )
+                                        except ZeroDivisionError:
+                                                gradientTanLine = sys.maxint if ( prevCheckPoint_x - checkPoint_x > 0 ) else - sys.maxint - 1
+                                        verticalLine = False
+                                        if (gradientTanLine == sys.maxint or gradientTanLine == (- sys.maxint - 1) ):
+                                                C = checkPoint_x
+                                                gradientTanLine = 0
+                                                verticalLine = True
+                                        else:
+                                                C = checkPoint_y - gradientTanLine * checkPoint_x
+                                        lineSegDist = 100
+                                        a_Quad_Coeff = 1 + gradientTanLine**2
+                                        b_Quad_Coeff = 2*gradientTanLine*C - 2*checkPoint_x - 2*gradientTanLine*checkPoint_y
+                                        c_Quad_Coeff = checkPoint_x**2 + checkPoint_y**2 - 2*checkPoint_y*C + C**2 - lineSegDist**2
+
+                                        if not verticalLine:
+                                                x1, x2 = solveQuadEq(a_Quad_Coeff, b_Quad_Coeff, c_Quad_Coeff)
+                                                y1 = gradientTanLine * x1 + C
+                                                y2 = gradientTanLine * x2 + C
+                                        else:
+                                                x1 = checkPoint_x
+                                                x2 = checkPoint_x
+                                                y1 = C + lineSegDist
+                                                y2 = C + lineSegDist
+                                        v = np.matrix([x1, y1])
+                                        w = np.matrix([x2, y2])
+                                        p = np.matrix([pos_x, pos_y])
+
+                                        dist, ref_point = self.minDist(v, w, p)
+                                        checkpoint_direction = [ref_point[0,0] - pos_x, ref_point[0,1] - pos_y]
+
+                                        
+                                        #getting coordinates of other adjacent checkpoints
+                                        otherCheckPoint = []
+                                        str = mapinfo['map'][currentCheckPoint - 1]['linkTo']
+                                        print "linkTo", str
+                                        otherCheckPoint = [int(s) for s in str.split(",")]
+                                        otherCheckPoint.remove(nextCheckPoint)
+                                        if len(otherCheckPoint) > 1:
+                                                print "number of adjacent checkpoints, ", len(otherCheckPoint)
+                                                otherCheckPoint_x = []
+                                                otherCheckPoint_y = []
+                                                print "still ok"
+                                                for j in range(len(otherCheckPoint)):
+                                                        otherCheckPoint_x.append(int(mapinfo['map'][otherCheckPoint[j] - 1]['x']))
+                                                        otherCheckPoint_y.append(int(mapinfo['map'][otherCheckPoint[j] - 1]['y']))
+                                                print "check borders"
+                                                print otherCheckPoint_x
+                                                print otherCheckPoint_y
+                                                left_x = min(otherCheckPoint_x) if min(otherCheckPoint_x) < checkPoint_x else - sys.maxint - 1
+                                                right_x = max(otherCheckPoint_x) if max(otherCheckPoint_x) > checkPoint_x else sys.maxint
+                                                bottom_y = min(otherCheckPoint_y) if min(otherCheckPoint_y) < checkPoint_y else - sys.maxint - 1
+                                                top_y = max(otherCheckPoint_y) if max(otherCheckPoint_y) > checkPoint_y else sys.maxint
+
+                                                if (pos_x <= left_x or pos_x >= right_x) or (pos_y <= bottom_y or pos_y >= top_y):
+                                                        detourCheckPoint = True
+                                                        return reachCheckPoint, pos_x, pos_y, detourCheckPoint
+
+                                        try:
+                                                tan_direction = checkpoint_direction[1] / checkpoint_direction[0]
+                                        except ZeroDivisionError:
+                                                if checkpoint_direction[1] >= 0:
+                                                        tan_direction = sys.maxint
+                                                else:
+                                                        tan_direction = - sys.maxint - 1
+
+                                        heading_direction = math.degrees(math.atan(tan_direction))
+                                        if checkpoint_direction[1] >= 0 and checkpoint_direction[0] >= 0:
+                                                heading_direction = 90 - heading_direction
+                                        elif checkpoint_direction[1] < 0 and checkpoint_direction[0] >= 0:
+                                                heading_direction = 90 - heading_direction
+                                        elif checkpoint_direction[1] < 0 and checkpoint_direction[0] < 0:
+                                                heading_direction = 270 - heading_direction
+                                        else:
+                                                heading_direction = 270 - heading_direction
+
+                                        direction = '%s %lf degrees, %lf'
+                                        speak_direction = '%s %d degrees, and walk %d point %d meters\n'
+                                        change_direction = heading_direction - heading
+                                        if change_direction > 180:
+                                                change_direction = -1 * (change_direction - 180)
+                                        elif change_direction < -180:
+                                                change_direction = -1 * (change_direction + 180)
+
+                                        if dist >= 20:
+                                                if change_direction >= 10:
+                                                        turn_instruction = 'turn clockwise'
+                                                        direction = direction %(turn_instruction, change_direction, dist)
+                                                        speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
+                                                elif change_direction <= -10:
+                                                        turn_instruction = 'turn anticlockwise'
+                                                        direction = direction %(turn_instruction, abs(change_direction), dist)
+                                                        speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist/100), int((dist%100)/10))
+                                                else:
+                                                        turn_instruction = 'go straight'
+                                                        direction = direction %(turn_instruction, change_direction, dist)
+                                                        speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
+
+                                                print direction
+                                                speaker.threadedFeedback(speak_direction)
+                                        else:
+                                                print "checkpoint reached!"
+                                                sayReachCheckPoint = 'checkpoint reached!\n'
+                                                speaker.threadedFeedback(sayReachCheckPoint)
+                                                reachCheckPoint = True
+                                                break
+>>>>>>> origin/master
 
                 return reachCheckPoint, pos_x, pos_y, detourCheckPoint
 
@@ -636,6 +800,7 @@ def confirmUserInput(userInputType, userInput, speechInput, speaker, userInputIn
 	print 'userInput is', userInput
 	return userInput
         
+
 
 
 if __name__ == '__main__':
