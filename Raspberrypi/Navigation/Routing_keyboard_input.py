@@ -4,6 +4,7 @@ import math
 import json
 import urllib
 import Queue as queue
+import numpy as np
 import re
 
 import signal
@@ -166,13 +167,21 @@ class Map(object):
                 return math.sqrt((a[0,0] - b[0,0])**2 + (a[0,1] - b[0,1])**2)
 
         def minDist(self, v, w, p):
+                print 'in minDist function'
+                print 'v', v
+                print 'w', w
                 l_sq = (v[0,0] - w[0,0])**2 + (v[0,1] - w[0,1])**2
+                print 'l_sq', l_sq
                 mid_point = ( v + w ) / 2
+                print 'mid_point', mid_point
                 if l_sq == 0:
                         return dist(p, v), v
                 a = p - v
                 b = w - v
                 t = np.dot(a, b.transpose()) / l_sq
+                print 'a', a
+                print 'b', b
+                print 't', t
                 if t < 0:
                         return self.dist(p, mid_point), mid_point            # beyond the v end of the segment
                 elif t > 1:
@@ -181,12 +190,29 @@ class Map(object):
                         projection = v + t * ( w - v )                  # projection falls on the segment
                         return self.dist(p, projection), projection
 
+        def solveQuadEq(self, a, b, c):
+                print 'a, b, c:', a, b, c
+                det = b**2 - 4*a*c
+                print 'det: ', det
+                if det < 0:
+                        print 'no real roots'
+                        return -1, -1
+                elif det == 0:
+                        x = ( -b + math.sqrt(det) ) / (2 * a)
+                        return x, x
+                else:
+                        x1 = ( -b + math.sqrt(det) ) / (2 * a)
+                        x2 = ( -b - math.sqrt(det) ) / (2 * a)
+                        return x1, x2
+
         def lineSegment(self, prevCheckPoint_x, checkPoint_x, prevCheckPoint_y, checkPoint_y):
+                
                 C = 0
                 try:
                         gradientTanLine = ( prevCheckPoint_x - checkPoint_x ) / ( checkPoint_y - prevCheckPoint_y )
                 except ZeroDivisionError:
                         gradientTanLine = sys.maxint if ( prevCheckPoint_x - checkPoint_x > 0 ) else - sys.maxint - 1
+
                 verticalLine = False
                 if (gradientTanLine == sys.maxint or gradientTanLine == (- sys.maxint - 1) ):
                         C = checkPoint_x
@@ -194,23 +220,26 @@ class Map(object):
                         verticalLine = True
                 else:
                         C = checkPoint_y - gradientTanLine * checkPoint_x
+
                 lineSegDist = 100
                 a_Quad_Coeff = 1 + gradientTanLine**2
                 b_Quad_Coeff = 2*gradientTanLine*C - 2*checkPoint_x - 2*gradientTanLine*checkPoint_y
                 c_Quad_Coeff = checkPoint_x**2 + checkPoint_y**2 - 2*checkPoint_y*C + C**2 - lineSegDist**2
+                
 
                 if not verticalLine:
-                        x1, x2 = solveQuadEq(a_Quad_Coeff, b_Quad_Coeff, c_Quad_Coeff)
+                        x1, x2 = self.solveQuadEq(a_Quad_Coeff, b_Quad_Coeff, c_Quad_Coeff)
                         y1 = gradientTanLine * x1 + C
                         y2 = gradientTanLine * x2 + C
                 else:
                         x1 = checkPoint_x
                         x2 = checkPoint_x
                         y1 = C + lineSegDist
-                        y2 = C + lineSegDist
+                        y2 = C - lineSegDist
+                
                 v = np.matrix([x1, y1])
                 w = np.matrix([x2, y2])
-
+                
                 return v, w
 
 
@@ -371,26 +400,31 @@ class Map(object):
                 pos_y = float(pos_y) + pos_y_delta
                 print "current coordinates (", pos_x, ", ", pos_y, " )"
                 #getting coordinates of next checkpoint
-                checkPoint_x = int(mapinfo['map'][nextCheckPoint - 1]['x'])
-                checkPoint_y = int(mapinfo['map'][nextCheckPoint - 1]['y'])
-                dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
-                checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
-		
-		print 'checkpoing_direction =', checkpoint_direction
+                checkPoint_x = int(self.mapinfo['map'][nextCheckPoint - 1]['x'])
+                checkPoint_y = int(self.mapinfo['map'][nextCheckPoint - 1]['y'])
+##                dist = math.sqrt(int(int(pos_x - checkPoint_x)**2 + int(pos_y - checkPoint_y)**2))
+##                checkpoint_direction = [checkPoint_x - pos_x, checkPoint_y - pos_y]
+##		
+##		print 'checkpoing_direction =', checkpoint_direction
 
 		# testing new paradigm
-                prevCheckPoint_x = int(mapinfo['map'][currentCheckPoint - 1]['x'])
-                prevCheckPoint_y = int(mapinfo['map'][currentCheckPoint - 1]['y'])
+		print 'testing new paradigm'
+                prevCheckPoint_x = int(self.mapinfo['map'][currentCheckPoint - 1]['x'])
+                prevCheckPoint_y = int(self.mapinfo['map'][currentCheckPoint - 1]['y'])
+                print 'got mapinfo'
 
                 v, w = self.lineSegment(prevCheckPoint_x, checkPoint_x, prevCheckPoint_y, checkPoint_y)
+                print 'v', v
+                print 'w', w
                 p = np.matrix([pos_x, pos_y])
 
                 dist, ref_point = self.minDist(v, w, p)
+                print 'minDist calculated'
                 checkpoint_direction = [ref_point[0,0] - pos_x, ref_point[0,1] - pos_y]
                 
                 #getting coordinates of other adjacent checkpoints
                 otherCheckPoint = []
-                str = mapinfo['map'][currentCheckPoint - 1]['linkTo']
+                str = self.mapinfo['map'][currentCheckPoint - 1]['linkTo']
                 print "linkTo", str
                 otherCheckPoint = [int(s) for s in str.split(",")]
                 otherCheckPoint.remove(nextCheckPoint)
@@ -400,8 +434,8 @@ class Map(object):
                         otherCheckPoint_y = []
                         #print "still ok"
                         for j in range(len(otherCheckPoint)):
-                                otherCheckPoint_x.append(int(mapinfo['map'][otherCheckPoint[j] - 1]['x']))
-                                otherCheckPoint_y.append(int(mapinfo['map'][otherCheckPoint[j] - 1]['y']))
+                                otherCheckPoint_x.append(int(self.mapinfo['map'][otherCheckPoint[j] - 1]['x']))
+                                otherCheckPoint_y.append(int(self.mapinfo['map'][otherCheckPoint[j] - 1]['y']))
                         print "check borders"
                         print otherCheckPoint_x
                         print otherCheckPoint_y
