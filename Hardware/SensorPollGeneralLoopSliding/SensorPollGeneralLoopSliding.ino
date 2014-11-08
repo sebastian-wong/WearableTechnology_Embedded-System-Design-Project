@@ -62,6 +62,7 @@ unsigned int interval = 0.01;
 
 void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
 {
+
   int ultrasoundPinIndex = 0; //Scoped variable which resets to 0 at every beginning
 //  int trigPin = 0;
 //  int echoPin = 0;
@@ -99,10 +100,12 @@ void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
   duration = duration / 29 / 2;
   if(duration < 10)
     duration = 10;
-  else if (duration > 200)
+  if (duration > 200)
     duration = 200;
+    
   head_ultrasound = duration;
-//  Serial.print("head_ultrasound: ");
+  Serial.print("head_ultrasound: ");
+  Serial.println(head_ultrasound);
 //  Serial.print(duration);
 //  Serial.print("\n");
   ultrasoundPinIndex++;
@@ -132,6 +135,7 @@ void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
     {
       ultrasoundPinIndex = 0;
     }
+
 }
 
 
@@ -385,29 +389,29 @@ void setup()
   pinMode(ultrasoundTrigPin, OUTPUT); 
   pinMode(ultrasoundEchoPin, INPUT);
 
-//setup long range IR
-  pinMode(sensorPin0, INPUT); 
-  pinMode(sensorPin1, INPUT);
-  pinMode(sensorPin2, INPUT);
-  pinMode(sensorPin3, INPUT);
-
-// Setup motors
-  int i;
-  for(i = 0; i < 1; i++){
-    pinMode(motor_head_IR[i], OUTPUT);
-    pinMode(motor_head_ultrasound[i], OUTPUT);
-    pinMode(motor_chestLeft[i], OUTPUT);
-    pinMode(motor_chestRight[i], OUTPUT);  
-    pinMode(motor_waistCentre_IR[i], OUTPUT);
-  }  
+////setup long range IR
+//  pinMode(sensorPin0, INPUT); 
+//  pinMode(sensorPin1, INPUT);
+//  pinMode(sensorPin2, INPUT);
+//  pinMode(sensorPin3, INPUT);
+//
+//// Setup motors
+//  int i;
+//  for(i = 0; i < 1; i++){
+//    pinMode(motor_head_IR[i], OUTPUT);
+//    pinMode(motor_head_ultrasound[i], OUTPUT);
+//    pinMode(motor_chestLeft[i], OUTPUT);
+//    pinMode(motor_chestRight[i], OUTPUT);  
+//    pinMode(motor_waistCentre_IR[i], OUTPUT);
+//  }  
   
 }
 
 void loop() //Main time loop runs here
 {
   //Serial.println("Slow debug");
-  //ultrasoundSensorPoll();
-  shortRangeInfraredSensorPoll();
+  ultrasoundSensorPoll();
+  //shortRangeInfraredSensorPoll();
   //longRangeInfraredSensorPoll();
-  vibrateMotors();
+  //vibrateMotors();
 }
