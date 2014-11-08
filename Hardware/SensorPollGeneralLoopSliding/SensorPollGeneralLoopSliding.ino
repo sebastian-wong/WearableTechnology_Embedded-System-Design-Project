@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include <elapsedMillis.h>
 
 #define MAX_INTERVAL 1000 //Milliseconds
 #define MIN_INTERVAL 100 //Milliseconds
@@ -55,6 +56,9 @@ int ultrasoundEchoPin = 3;
 //int longRangeInfraredPin=8;
 //int longRangeInfraredPin[4] = {4,5,6,7};
 
+elapsedMillis timeElapsed;
+unsigned int interval = 0.01;
+
 
 void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
 {
@@ -74,11 +78,18 @@ void ultrasoundSensorPoll() //Note that ultrasound sensors read after each other
   
 //  analogWrite(trigPin, LOW);
   digitalWrite(ultrasoundTrigPin, LOW);
-  delayMicroseconds(2);
+ // delayMicroseconds(2);
+ 
+  timeElapsed = 0;
+  while (timeElapsed < interval );
+  timeElapsed = 0;
   
   //analogWrite(trigPin, HIGH);
   digitalWrite(ultrasoundTrigPin, HIGH);
-  delayMicroseconds(5);
+ // delayMicroseconds(5);
+  timeElapsed = 0;
+  while (timeElapsed < interval );
+  timeElapsed = 0;
   
 //  analogWrite(trigPin, LOW);
 //  duration = pulseIn(echoPin,HIGH);
@@ -371,8 +382,8 @@ void setup()
   Serial.begin(9600);
 
 //setup ultrasound 
-  //pinMode(ultrasoundTrigPin, OUTPUT); 
-  //pinMode(ultrasoundEchoPin, INPUT);
+  pinMode(ultrasoundTrigPin, OUTPUT); 
+  pinMode(ultrasoundEchoPin, INPUT);
 
 //setup long range IR
   pinMode(sensorPin0, INPUT); 
