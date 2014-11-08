@@ -77,6 +77,9 @@ float gyro_rate;
 float gyro_scale = 0.02; // 0.02 by default - tweak as required
 float gyro_angle;
 float gyro_angle2degree;
+float holding_gyro_angle2degree;
+float gyro_angledifference;
+float gyro_mapped_onto_compass;
 float loop_time = 0.05; // 50ms loop
 float angle = 0.00; // value to hold final calculated gyro angle
  
@@ -85,6 +88,7 @@ int last_update;
 int cycle_time;
 long last_cycle = 0;
 
+int compassCalibrated = 0;
 
 elapsedMillis timeElapsed;
 elapsedMillis timeOut;
@@ -97,25 +101,25 @@ int bearing_int ;
 
 void setup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
-Wire.begin();
+  Wire.begin();
  
-// initialize serial communication
-Serial.begin(9600);
+  // initialize serial communication
+  Serial.begin(9600);
  
-// initialize device
-Serial.println("Initializing I2C devices...");
-accelgyro.initialize();
-accelgyro.setI2CBypassEnabled(true);
-compass2=HMC5883L();
-compass2.SetScale(1.3); 
-compass2.SetMeasurementMode(Measurement_Continuous);
-// verify connection
-Serial.println("Testing device connections...");
-Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
+  // initialize device
+  Serial.println("Initializing I2C devices...");
+  accelgyro.initialize();
+  accelgyro.setI2CBypassEnabled(true);
+  compass2=HMC5883L();
+  compass2.SetScale(1.3); 
+  compass2.SetMeasurementMode(Measurement_Continuous);
+  // verify connection
+  Serial.println("Testing device connections...");
+  Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
  
  
- //default offset set to the three axis based 
- // in the orientation that the magnetometer will move 
+  //default offset set to the three axis based 
+  // in the orientation that the magnetometer will move 
   compass_x_offset = 193.91;
   compass_y_offset = -95.05;
   compass_z_offset = 180.94;
@@ -130,13 +134,12 @@ Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "M
   compass_calibration(3); 
  
 
-// configure Arduino LED for
-pinMode(LED_PIN, OUTPUT);
-}
+// // configure Arduino LED for
+//  pinMode(LED_PIN, OUTPUT);
+// }
  
 void loop(){
  
-  
   MagnetometerScaled scaled = compass2.ReadScaledAxis();
   mx=scaled.XAxis;
   my=scaled.YAxis;
@@ -152,64 +155,79 @@ void loop(){
  current_ay = ay;
  current_az = az;
 
-  timeElapsed = 0;
-  while (timeElapsed < interval ){
-    prev_ax = current_ax;
-    prev_ay = current_ay;
-    prev_az = current_az;
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    current_ax = ax;
-    current_ay = ay;
-    current_az = az;
-  } 
-  timeElapsed = 0;
-  diff_ax = abs (current_ax - prev_ax);
-  diff_ay = abs (current_ay - prev_ay);
+ timeElapsed = 0;
+ while (timeElapsed < interval ){
+   prev_ax = current_ax;
+   prev_ay = current_ay;
+   prev_az = current_az;
+   accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+   current_ax = ax;
+   current_ay = ay;
+   current_az = az;
+ } 
+ timeElapsed = 0;
+ diff_ax = abs (current_ax - prev_ax);
+ diff_ay = abs (current_ay - prev_ay);
  
-  //timeOut = 0;
-//if chip is placed parallel to the ground, take readings from compass
-//else take readings from gyro after mapping gyroangle to degrees
+ //timeOut = 0;
+ //if chip is placed parallel to the ground, take readings from compass
+ //else take readings from gyro after mapping gyroangle to degrees
   if (az < 16000 && az >= 15000 && diff_ax <= 500 && diff_ay <= 500){
     compass_scalled_reading(); 
     compass_heading();
-    
-    gyro_angle2degree=bearing; //re calibrate gyro when user is not moving
+    holding_gyro_angle2degree = gyro_angle2degree;
+    //gyro_angle2degree=bearing; //re calibrate gyro when user is not moving
+    compassCalibrated = 1;
     bearing_int = int(bearing);
+    timeOut=0;
     
     Serial.print ("Heading angle = ");
     Serial.print (bearing_int);
     Serial.println(" Degree");
     Serial.println();
-//    Serial.print("within range");
   }
-   else{
-   // gyro_z_Axis angle calc  
-
+  else{
+  // gyro_z_Axis angle calc  
+    if(timeOut >= 5000){  //re calibrate gyro readings under timed conditions
+      compass_heading();
+      holding_gyro_angle2degree = gyro_angle2degree;
+      //gyro_angle2degree = bearing; 
+      compassCalibrated = 1;
+      bearing_int = int(bearing);
+      timeOut = 0;
+    }
     gyro_reading = gz;
     gyro_corrected = (float)((gyro_reading/131) - gyro_offset);  // 131 is sensivity of gyro from data sheet
     gyro_rate = (gyro_reading * gyro_scale) * -loop_time;      // loop_time = 0.05 ie 50ms     
     gyro_angle = gyro_angle + gyro_rate;
-    
-    
+        
    gyro_angle2degree = map(gyro_angle, -830, 830, 0, 360);
    gyro_angle2degree = constrain(gyro_angle2degree, 0, 360);
-      
-//     // Correct for when signs are reversed.
-//    if(gyro_angle2degree < 0.0)
-//      gyro_angle2degree += 360.0;
-//      
-//    // Check for wrap due to addition of declination.
-//    if(gyro_angle2degree > 360.0)
-//      gyro_angle2degree -= 360.0;
-      
-    bearing = gyro_angle2degree;
-    bearing_int = int(bearing);
-    Serial.print ("Heading angle = ");
-    Serial.print (bearing_int);
-    Serial.println(" Degree");
-    Serial.println(); 
-  
+   
+   gyro_angle2degree = gyro_angle2degree*2; //map to 0 to 360 degrees
+   
+   if(gyro_angle2degree > 359){
+     gyro_angle2degree = float(int(gyro_angle2degree) % 360) ; 
+    }
+    
+   gyro_angledifference=(holding_gyro_angle2degree - gyro_angle2degree);
+   holding_gyro_angle2degree = gyro_angle2degree;
+   
+   if(compassCalibrated == 1){
+   gyro_mapped_onto_compass = bearing + gyro_angledifference;
    }
+    
+   gyro_mapped_onto_compass = abs(gyro_mapped_onto_compass);
+        
+      
+      
+  bearing_int = int(gyro_mapped_onto_compass);
+  Serial.print ("Heading angle = ");
+  Serial.print (bearing_int);
+  Serial.println(" Degree");
+  Serial.println(); 
+  
+ }
   
   
 //  // accelerometer_X_Axis angle calc
@@ -267,27 +285,28 @@ void loop(){
 //  Serial.print("\t");
 //  Serial.println(" ");
     
-  // blink LED to indicate activity
-  blinkState = !blinkState;
-  digitalWrite(LED_PIN, blinkState);
+//  // blink LED to indicate activity
+//  blinkState = !blinkState;
+//  digitalWrite(LED_PIN, blinkState);
+
   
-  //timestamp
-  time_stamp();
+ //timestamp
+ time_stamp();
 
  
-  if(timeOut >= 5000){  //re calibrate gyro readings under timed conditions
-    compass_scalled_reading(); 
-    compass_heading();
-    gyro_angle2degree = bearing; 
-    bearing_int = int(bearing);
-    timeOut = 0;
-  }
-
+ if(timeOut >= 5000){  //re calibrate gyro readings under timed conditions
+//   compass_scalled_reading(); 
+   compass_heading();
+   gyro_angle2degree = bearing; 
+   bearing_int = int(bearing);
+   timeOut = 0;
+ }
 
 }
+
 void time_stamp(){
   while ((millis() - last_cycle) < 50){
-  delay(1);
+  //delay(1);
   }
   // once loop cycle reaches 50ms, reset timer value and continue
   cycle_time = millis() - last_cycle;
