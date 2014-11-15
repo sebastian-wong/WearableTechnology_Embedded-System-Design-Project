@@ -231,7 +231,7 @@ class Map(object):
                 else:
 			C = checkPoint_y - gradientTanLine * checkPoint_x
 
-                lineSegDist = 200
+                lineSegDist = 150
                 a_Quad_Coeff = 1 + gradientTanLine**2
                 b_Quad_Coeff = 2*gradientTanLine*C - 2*checkPoint_x - 2*gradientTanLine*checkPoint_y
                 c_Quad_Coeff = checkPoint_x**2 + checkPoint_y**2 - 2*checkPoint_y*C + C**2 - lineSegDist**2
@@ -361,7 +361,7 @@ class Map(object):
 		direction = '%s %lf degrees, %lf'
 		speak_direction = '%s %d degrees, %d point %d meters\n'
 		
-		per_step_dist = 60
+		per_step_dist = 45
                 distance = per_step_dist * step
 		print 'distance', distance
 		
@@ -380,12 +380,12 @@ class Map(object):
                 print "distance is not the problem"
 		
 		#compensating for magnetometer direction on bag
-		heading = int(heading) - 140
+		heading = int(heading) - 90
 		heading %= 360
 		heading = abs(heading)
 		
 		#compensating for map northAt
-		heading = int(heading) - (360 - Map.northAt)
+		heading = int(heading) - (360 - self.northAt)
 		heading %= 360
 		print '***DEBUGGING BEGINS***\n\n\n'
                 print 'heading after compensation', heading
@@ -456,11 +456,11 @@ class Map(object):
                 
 		if dist >= 100:
 			print 'dist is more than 1m'
-                        if change_direction >= 25:
+                        if change_direction >= 10:
                                 turn_instruction = 'clockwise'
                                 direction = direction %(turn_instruction, change_direction, dist)
                                 speak_direction = speak_direction %(turn_instruction, int(change_direction), int(dist/100), int((dist%100)/10))
-                        elif change_direction <= -25:
+                        elif change_direction <= -10:
                                 turn_instruction = 'anticlockwise'
                                 direction = direction %(turn_instruction, abs(change_direction), dist)
                                 speak_direction = speak_direction %(turn_instruction, int(abs(change_direction)), int(dist/100), int((dist%100)/10))

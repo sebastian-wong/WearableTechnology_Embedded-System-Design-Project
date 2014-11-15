@@ -231,7 +231,7 @@ class Map(object):
                 else:
 			C = checkPoint_y - gradientTanLine * checkPoint_x
 
-                lineSegDist = 200
+                lineSegDist = 250
                 a_Quad_Coeff = 1 + gradientTanLine**2
                 b_Quad_Coeff = 2*gradientTanLine*C - 2*checkPoint_x - 2*gradientTanLine*checkPoint_y
                 c_Quad_Coeff = checkPoint_x**2 + checkPoint_y**2 - 2*checkPoint_y*C + C**2 - lineSegDist**2
@@ -251,7 +251,53 @@ class Map(object):
                 w = np.matrix([x2, y2])
                 
                 return v, w
+		
+	def segmentDirection(self, change_direction):
+		if change_direction >= 0 and change_direction < 101.25:
 
+			if change_direction >= 0 and change_direction < 12.25:
+				change_direction = 0
+			elif change_direction >= 12.24 and change_direction < 33.75:
+				change_direction = 22.5
+			elif change_direction >= 33.74 and change_direction < 56.25:
+				change_direction = 45
+			elif change_direction >= 56.24 and change_direction < 78.75:
+				change_direction = 67.5
+			elif change_direction >= 78.74 and change_direction < 101.25:
+				change_direction = 90
+		
+		elif change_direction >= 90 and change_direction < 191.25:
+
+			if change_direction >= 101.24 and change_direction < 123.75:
+				change_direction = 112.5
+			elif change_direction >= 123.74 and change_direction < 146.25:
+				change_direction = 135
+			elif change_direction >= 146.24 and change_direction < 168.75:
+				change_direction = 157.5
+			elif change_direction >= 168.74 and change_direction < 191.25:
+				change_direction = 180
+			
+		elif change_direction >= 180 and change_direction < 281.25:
+			if change_direction >= 191.24 and change_direction < 213.75:
+				change_direction = 202.5
+			elif change_direction >= 213.74 and change_direction < 236.25:
+				change_direction = 225
+			elif change_direction >= 236.24 and change_direction < 258.75:
+				change_direction = 247.5
+			elif change_direction >= 258.74 and change_direction < 281.25:
+				change_direction = 270
+
+		elif change_direction >= 270 and change_direction < 360:
+			if change_direction >= 281.24 and change_direction < 303.75:
+				change_direction = 292.5
+			elif change_direction >= 303.74 and change_direction < 326.25:
+				change_direction = 315
+			elif change_direction >= 326.24 and change_direction < 348.75:
+				change_direction = 337.5
+			elif change_direction >= 348.74 and change_direction < 360:
+				change_direction = 0
+
+		return change_direction
 
 ##        def exitMap(self, pos_x, pos_y):
 ##                print 'in exitMap function'
@@ -446,12 +492,17 @@ class Map(object):
 		
 		print 'heading_direction bearing', heading_direction
                 change_direction = heading_direction - heading
+		
 		print 'change_direction raw', change_direction
                 if change_direction > 180:
                         change_direction = -1 * (360 - change_direction)
 		elif change_direction < -180:
 			change_direction =  360 + change_direction
+		
 		print 'change_direction direction', change_direction
+		change_direction = self.segmentDirection(change_direction)
+
+		print 'change_direction direction after segmentation', change_direction
 		print 'in calcDisplacement, distance to next checkPoint is ', dist
                 
 		if dist >= 100:
@@ -478,7 +529,7 @@ class Map(object):
 
         def provideDirections(self, nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker):
                 print "start of provideDirections function"
-                sayNextCheckPoint = 'your next checkpoint is %s\n' %(self.mapinfo['map'][nextCheckPoint - 1]['nodeName'])
+                sayNextCheckPoint = 'next checkpoint %s\n' %(self.mapinfo['map'][nextCheckPoint - 1]['nodeName'])
                 print sayNextCheckPoint
                 
 		speaking_proc = Process(target=speaker.threadedFeedback, args=(sayNextCheckPoint,))
@@ -604,8 +655,6 @@ class Map(object):
                                         if not path:
                                                 reachDestination = True
                                         print nextCheckPoint, self.mapinfo['map'][nextCheckPoint-1]['nodeName']
-					pos_x = self.mapinfo['map'][currentCheckPoint-1]['x']
-					pos_y = self.mapinfo['map'][currentCheckPoint-1]['y']
                                 try:
                                         print 'going to provideDirections'
 					reachCheckPoint, pos_x, pos_y, detourCheckPoint, exitMap = self.provideDirections(nextCheckPoint, currentCheckPoint, pos_x, pos_y, speaker)
