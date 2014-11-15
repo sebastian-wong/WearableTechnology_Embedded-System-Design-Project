@@ -84,9 +84,9 @@ float loop_time = 0.05; // 50ms loop
 float angle = 0.00; // value to hold final calculated gyro angle
  
 // time stamp variables
-int last_update;
-int cycle_time;
-long last_cycle = 0;
+//int last_update;
+//int cycle_time;
+//long last_cycle = 0;
 
 int compassCalibrated = 0;
 
@@ -104,7 +104,8 @@ void setup() {
   Wire.begin();
  
   // initialize serial communication
-  Serial.begin(9600);
+  //Serial.begin(9600);
+  Serial.begin(115200);
  
   // initialize device
   Serial.println("Initializing I2C devices...");
@@ -136,7 +137,7 @@ void setup() {
 
 // // configure Arduino LED for
 //  pinMode(LED_PIN, OUTPUT);
-// }
+}
  
 void loop(){
  
@@ -156,7 +157,7 @@ void loop(){
  current_az = az;
 
  timeElapsed = 0;
- while (timeElapsed < interval ){
+// while (timeElapsed < interval ){
    prev_ax = current_ax;
    prev_ay = current_ay;
    prev_az = current_az;
@@ -164,7 +165,7 @@ void loop(){
    current_ax = ax;
    current_ay = ay;
    current_az = az;
- } 
+ //} 
  timeElapsed = 0;
  diff_ax = abs (current_ax - prev_ax);
  diff_ay = abs (current_ay - prev_ay);
@@ -291,7 +292,7 @@ void loop(){
 
   
  //timestamp
- time_stamp();
+ //time_stamp();
 
  
  if(timeOut >= 5000){  //re calibrate gyro readings under timed conditions
@@ -304,11 +305,11 @@ void loop(){
 
 }
 
-void time_stamp(){
-  while ((millis() - last_cycle) < 50){
-  //delay(1);
-  }
-  // once loop cycle reaches 50ms, reset timer value and continue
-  cycle_time = millis() - last_cycle;
-  last_cycle = millis();
-}
+//void time_stamp(){
+//  while ((millis() - last_cycle) < 50){
+//  //delay(1);
+//  }
+//  // once loop cycle reaches 50ms, reset timer value and continue
+//  cycle_time = millis() - last_cycle;
+//  last_cycle = millis();
+//}
